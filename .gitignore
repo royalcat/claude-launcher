@@ -1,0 +1,8 @@
+node_modules/
+docs/
+.claude
+
+
+# Added by cargo
+
+/target

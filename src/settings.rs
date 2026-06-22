@@ -7,7 +7,7 @@ use xdg::BaseDirectories;
 
 use crate::error::{AppError, ConfigAccessError};
 
-pub const DEFAULT_PROFILE_LABEL: &str = "default";
+pub const DEFAULT_WORKSPACE_LABEL: &str = "default";
 
 fn xdg_dirs() -> BaseDirectories {
     BaseDirectories::with_prefix("claude-launcher")
@@ -40,15 +40,15 @@ pub fn default_config_path() -> PathBuf {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RawSettings {
-    pub active_profile: Option<String>,
-    pub profiles: Option<HashMap<String, String>>,
+    pub active_workspace: Option<String>,
+    pub workspaces: Option<HashMap<String, String>>,
     pub last_launched_credential: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Settings {
-    pub active_profile: String,
-    pub profiles: HashMap<String, String>,
+    pub active_workspace: String,
+    pub workspaces: HashMap<String, String>,
     pub last_launched_credential: Option<String>,
 }
 
@@ -80,8 +80,8 @@ fn write_raw(settings: &Settings) -> Result<(), ConfigAccessError> {
         })?;
     }
     let raw = RawSettings {
-        active_profile: Some(settings.active_profile.clone()),
-        profiles: Some(settings.profiles.clone()),
+        active_workspace: Some(settings.active_workspace.clone()),
+        workspaces: Some(settings.workspaces.clone()),
         last_launched_credential: settings.last_launched_credential.clone(),
     };
     let data = serde_json::to_string_pretty(&raw).expect("serialization never fails");
@@ -106,38 +106,38 @@ fn set_permissions_600(_path: &Path) {}
 fn normalize(raw: RawSettings) -> (Settings, bool) {
     let mut dirty = false;
 
-    let mut profiles: HashMap<String, String> = raw.profiles.clone().unwrap_or_default();
-    let mut active_profile: Option<String> = raw.active_profile.clone();
+    let mut workspaces: HashMap<String, String> = raw.workspaces.clone().unwrap_or_default();
+    let mut active_workspace: Option<String> = raw.active_workspace.clone();
     let last_launched_credential: Option<String> = raw.last_launched_credential.clone();
 
-    // Fresh install: seed default profile
-    if profiles.is_empty() {
-        profiles.insert(DEFAULT_PROFILE_LABEL.to_string(), default_config_path().to_string_lossy().into_owned());
-        active_profile = Some(DEFAULT_PROFILE_LABEL.to_string());
-        dirty = dirty || raw.profiles.is_none();
+    // Fresh install: seed default workspace
+    if workspaces.is_empty() {
+        workspaces.insert(DEFAULT_WORKSPACE_LABEL.to_string(), default_config_path().to_string_lossy().into_owned());
+        active_workspace = Some(DEFAULT_WORKSPACE_LABEL.to_string());
+        dirty = dirty || raw.workspaces.is_none();
     }
 
     // Remove non-string/empty entries
-    profiles.retain(|_, v| !v.is_empty());
-    if profiles.is_empty() {
-        profiles.insert(DEFAULT_PROFILE_LABEL.to_string(), default_config_path().to_string_lossy().into_owned());
-        active_profile = Some(DEFAULT_PROFILE_LABEL.to_string());
+    workspaces.retain(|_, v| !v.is_empty());
+    if workspaces.is_empty() {
+        workspaces.insert(DEFAULT_WORKSPACE_LABEL.to_string(), default_config_path().to_string_lossy().into_owned());
+        active_workspace = Some(DEFAULT_WORKSPACE_LABEL.to_string());
         dirty = true;
     }
 
-    // Ensure active_profile points at an existing profile
-    let active = active_profile.unwrap_or_default();
-    let active = if profiles.contains_key(&active) {
+    // Ensure active_workspace points at an existing workspace
+    let active = active_workspace.unwrap_or_default();
+    let active = if workspaces.contains_key(&active) {
         active
     } else {
         dirty = true;
-        profiles.keys().next().unwrap().clone()
+        workspaces.keys().next().unwrap().clone()
     };
 
     (
         Settings {
-            active_profile: active,
-            profiles,
+            active_workspace: active,
+            workspaces,
             last_launched_credential,
         },
         dirty,
@@ -157,16 +157,16 @@ pub fn save_settings(settings: &Settings) -> Result<(), AppError> {
     write_raw(settings).map_err(AppError::Access)
 }
 
-// ---- Profile API ---------------------------------------------------------
+// ---- Workspace API --------------------------------------------------------
 
-pub fn list_profiles() -> HashMap<String, String> {
-    load_settings().profiles
+pub fn list_workspaces() -> HashMap<String, String> {
+    load_settings().workspaces
 }
 
-pub fn get_active_profile() -> (String, String) {
+pub fn get_active_workspace() -> (String, String) {
     let s = load_settings();
-    let path = s.profiles[&s.active_profile].clone();
-    (s.active_profile, path)
+    let path = s.workspaces[&s.active_workspace].clone();
+    (s.active_workspace, path)
 }
 
 pub fn get_last_launched_credential() -> Option<String> {
@@ -179,73 +179,73 @@ pub fn update_last_launched_credential(slug: &str) {
     let _ = save_settings(&s);
 }
 
-pub fn set_active_profile(label: &str) -> Result<(), AppError> {
+pub fn set_active_workspace(label: &str) -> Result<(), AppError> {
     let mut s = load_settings();
-    if !s.profiles.contains_key(label) {
-        return Err(AppError::Other(format!("Profile \"{label}\" does not exist")));
+    if !s.workspaces.contains_key(label) {
+        return Err(AppError::Other(format!("Workspace \"{label}\" does not exist")));
     }
-    s.active_profile = label.to_string();
+    s.active_workspace = label.to_string();
     save_settings(&s)
 }
 
-pub fn add_profile(label: &str, profile_path: &str) -> Result<String, AppError> {
+pub fn add_workspace(label: &str, workspace_path: &str) -> Result<String, AppError> {
     let slug = slugify_label(label);
     if slug.is_empty() {
-        return Err(AppError::Other("Profile label must contain at least one alphanumeric character".into()));
+        return Err(AppError::Other("Workspace label must contain at least one alphanumeric character".into()));
     }
     let mut s = load_settings();
-    if s.profiles.contains_key(&slug) {
-        return Err(AppError::Other(format!("Profile \"{slug}\" already exists")));
+    if s.workspaces.contains_key(&slug) {
+        return Err(AppError::Other(format!("Workspace \"{slug}\" already exists")));
     }
-    s.profiles.insert(slug.clone(), profile_path.to_string());
+    s.workspaces.insert(slug.clone(), workspace_path.to_string());
     save_settings(&s)?;
     Ok(slug)
 }
 
-pub fn rename_profile(old_label: &str, new_label: &str) -> Result<String, AppError> {
+pub fn rename_workspace(old_label: &str, new_label: &str) -> Result<String, AppError> {
     let new_slug = slugify_label(new_label);
     if new_slug.is_empty() {
-        return Err(AppError::Other("Profile label must contain at least one alphanumeric character".into()));
+        return Err(AppError::Other("Workspace label must contain at least one alphanumeric character".into()));
     }
     let mut s = load_settings();
-    if !s.profiles.contains_key(old_label) {
-        return Err(AppError::Other(format!("Profile \"{old_label}\" does not exist")));
+    if !s.workspaces.contains_key(old_label) {
+        return Err(AppError::Other(format!("Workspace \"{old_label}\" does not exist")));
     }
     if new_slug == old_label {
         return Ok(new_slug);
     }
-    if s.profiles.contains_key(&new_slug) {
-        return Err(AppError::Other(format!("Profile \"{new_slug}\" already exists")));
+    if s.workspaces.contains_key(&new_slug) {
+        return Err(AppError::Other(format!("Workspace \"{new_slug}\" already exists")));
     }
-    let path = s.profiles.remove(old_label).unwrap();
-    s.profiles.insert(new_slug.clone(), path);
-    if s.active_profile == old_label {
-        s.active_profile = new_slug.clone();
+    let path = s.workspaces.remove(old_label).unwrap();
+    s.workspaces.insert(new_slug.clone(), path);
+    if s.active_workspace == old_label {
+        s.active_workspace = new_slug.clone();
     }
     save_settings(&s)?;
     Ok(new_slug)
 }
 
-pub fn update_profile_path(label: &str, new_path: &str) -> Result<(), AppError> {
+pub fn update_workspace_path(label: &str, new_path: &str) -> Result<(), AppError> {
     let mut s = load_settings();
-    if !s.profiles.contains_key(label) {
-        return Err(AppError::Other(format!("Profile \"{label}\" does not exist")));
+    if !s.workspaces.contains_key(label) {
+        return Err(AppError::Other(format!("Workspace \"{label}\" does not exist")));
     }
-    s.profiles.insert(label.to_string(), new_path.to_string());
+    s.workspaces.insert(label.to_string(), new_path.to_string());
     save_settings(&s)
 }
 
-pub fn remove_profile(label: &str) -> Result<(), AppError> {
+pub fn remove_workspace(label: &str) -> Result<(), AppError> {
     let mut s = load_settings();
-    if !s.profiles.contains_key(label) {
-        return Err(AppError::Other(format!("Profile \"{label}\" does not exist")));
+    if !s.workspaces.contains_key(label) {
+        return Err(AppError::Other(format!("Workspace \"{label}\" does not exist")));
     }
-    if s.active_profile == label {
+    if s.active_workspace == label {
         return Err(AppError::Other(format!(
-            "Cannot delete active profile \"{label}\". Switch to another profile first."
+            "Cannot delete active workspace \"{label}\". Switch to another workspace first."
         )));
     }
-    s.profiles.remove(label);
+    s.workspaces.remove(label);
     save_settings(&s)
 }
 
@@ -267,7 +267,7 @@ pub fn get_config_path() -> String {
     if let Some(ref p) = *runtime_override().lock().unwrap() {
         return p.clone();
     }
-    let (_, path) = get_active_profile();
+    let (_, path) = get_active_workspace();
     path
 }
 
@@ -297,4 +297,3 @@ pub fn expand_path(input: &str) -> String {
             .into_owned()
     }
 }
-

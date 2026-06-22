@@ -10,23 +10,23 @@ use ratatui_textarea::TextArea;
 
 use super::widgets::{SelectList, render_footer, render_status};
 use crate::settings::{
-    add_profile, default_config_path, get_active_profile, list_profiles, remove_profile, rename_profile, set_active_profile, slugify_label,
-    update_profile_path,
+    add_workspace, default_config_path, get_active_workspace, list_workspaces, remove_workspace, rename_workspace, set_active_workspace, slugify_label,
+    update_workspace_path,
 };
 use crate::tui::theme::*;
 
 #[derive(Debug, Clone, PartialEq)]
 enum Step {
     TopMenu,
-    SwitchProfile,
-    AddProfile { sub: AddProfileSub },
-    EditProfileMenu,
-    EditProfileAction { target: String, sub: EditSub },
-    DeleteProfile,
+    SwitchWorkspace,
+    AddWorkspace { sub: AddWorkspaceSub },
+    EditWorkspaceMenu,
+    EditWorkspaceAction { target: String, sub: EditSub },
+    DeleteWorkspace,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum AddProfileSub {
+enum AddWorkspaceSub {
     Label,
     Path,
 }
@@ -39,18 +39,18 @@ enum EditSub {
 }
 
 const TOP_ITEMS: &[(&str, &str, &str)] = &[
-    ("Switch profile", "pick which profile is active", "switch"),
-    ("Add profile", "register a new credentials file", "add"),
-    ("Edit profile", "rename or change a profile path", "edit"),
-    ("Delete profile", "remove a profile (cannot be active)", "delete"),
+    ("Switch workspace", "pick which workspace is active", "switch"),
+    ("Add workspace", "register a new credentials file", "add"),
+    ("Edit workspace", "rename or change a workspace path", "edit"),
+    ("Delete workspace", "remove a workspace (cannot be active)", "delete"),
     ("Back", "", "back"),
 ];
 
 pub struct SettingsState {
     step: Step,
     menu_list: SelectList,
-    profile_list: SelectList,
-    profile_slugs: Vec<String>,
+    workspace_list: SelectList,
+    workspace_slugs: Vec<String>,
     text_input: TextArea<'static>,
     text_input2: TextArea<'static>,
     status: String,
@@ -63,8 +63,8 @@ impl SettingsState {
         SettingsState {
             step: Step::TopMenu,
             menu_list: SelectList::new(menu_items),
-            profile_list: SelectList::new(vec![]),
-            profile_slugs: vec![],
+            workspace_list: SelectList::new(vec![]),
+            workspace_slugs: vec![],
             text_input: TextArea::default(),
             text_input2: TextArea::default(),
             status: String::new(),
@@ -72,20 +72,20 @@ impl SettingsState {
         }
     }
 
-    fn refresh_profile_list(&mut self) {
-        let profiles = list_profiles();
-        let (active, _) = get_active_profile();
-        let mut slugs: Vec<String> = profiles.keys().cloned().collect();
+    fn refresh_workspace_list(&mut self) {
+        let workspaces = list_workspaces();
+        let (active, _) = get_active_workspace();
+        let mut slugs: Vec<String> = workspaces.keys().cloned().collect();
         slugs.sort();
         let items: Vec<(String, String)> = slugs
             .iter()
             .map(|s| {
                 let label = if s == &active { format!("{} (active)", s) } else { s.clone() };
-                (label, profiles[s].clone())
+                (label, workspaces[s].clone())
             })
             .collect();
-        self.profile_slugs = slugs;
-        self.profile_list = SelectList::new(items);
+        self.workspace_slugs = slugs;
+        self.workspace_list = SelectList::new(items);
     }
 }
 
@@ -96,7 +96,7 @@ pub enum Nav {
 
 pub fn render(f: &mut Frame, state: &mut SettingsState) {
     let area = f.area();
-    let (active_label, active_path) = get_active_profile();
+    let (active_label, active_path) = get_active_workspace();
 
     match &state.step.clone() {
         Step::TopMenu => {
@@ -113,7 +113,7 @@ pub fn render(f: &mut Frame, state: &mut SettingsState) {
                 ]),
                 Line::from(vec![
                     Span::raw("  "),
-                    dim("Active profile: "),
+                    dim("Active workspace: "),
                     Span::styled(&active_label, Style::default().add_modifier(Modifier::BOLD)),
                     dim(&format!("  ·  {active_path}")),
                 ]),
@@ -124,23 +124,23 @@ pub fn render(f: &mut Frame, state: &mut SettingsState) {
             render_footer(f, chunks[3], &[("↑↓", "move"), ("Enter", "select"), ("Esc", "back")]);
         }
 
-        Step::SwitchProfile => {
-            render_profile_picker(f, state, area, "Switch active profile to:");
+        Step::SwitchWorkspace => {
+            render_workspace_picker(f, state, area, "Switch active workspace to:");
         }
 
-        Step::AddProfile { sub } => {
+        Step::AddWorkspace { sub } => {
             let (prompt, hint) = match sub {
-                AddProfileSub::Label => ("Profile label:", "e.g. personal, office, cheap-models"),
-                AddProfileSub::Path => ("Path to credentials JSON:", "~ expands to home directory"),
+                AddWorkspaceSub::Label => ("Workspace label:", "e.g. personal, office, cheap-models"),
+                AddWorkspaceSub::Path => ("Path to credentials JSON:", "~ expands to home directory"),
             };
-            render_text_input_step(f, state, area, "Add Profile", prompt, hint);
+            render_text_input_step(f, state, area, "Add Workspace", prompt, hint);
         }
 
-        Step::EditProfileMenu => {
-            render_profile_picker(f, state, area, "Edit which profile?");
+        Step::EditWorkspaceMenu => {
+            render_workspace_picker(f, state, area, "Edit which workspace?");
         }
 
-        Step::EditProfileAction { target, sub } => {
+        Step::EditWorkspaceAction { target, sub } => {
             let target = target.clone();
             let sub = sub.clone();
             match sub {
@@ -163,13 +163,13 @@ pub fn render(f: &mut Frame, state: &mut SettingsState) {
             }
         }
 
-        Step::DeleteProfile => {
-            render_profile_picker(f, state, area, "Delete which profile?");
+        Step::DeleteWorkspace => {
+            render_workspace_picker(f, state, area, "Delete which workspace?");
         }
     }
 }
 
-fn render_profile_picker(f: &mut Frame, state: &mut SettingsState, area: Rect, title_str: &str) {
+fn render_workspace_picker(f: &mut Frame, state: &mut SettingsState, area: Rect, title_str: &str) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(2), Constraint::Min(8), Constraint::Length(2), Constraint::Length(2)])
@@ -180,7 +180,7 @@ fn render_profile_picker(f: &mut Frame, state: &mut SettingsState, area: Rect, t
         Span::styled(title_str, Style::default().add_modifier(Modifier::BOLD)),
     ]));
     f.render_widget(title, chunks[0]);
-    state.profile_list.render(f, chunks[1], false);
+    state.workspace_list.render(f, chunks[1], false);
     render_status(f, chunks[2], &state.status, state.is_error);
     render_footer(f, chunks[3], &[("↑↓", "move"), ("Enter", "select"), ("Esc", "back")]);
 }
@@ -240,11 +240,11 @@ fn render_edit_action_menu(f: &mut Frame, state: &mut SettingsState, area: Rect,
 pub fn handle_key(state: &mut SettingsState, key: KeyEvent) -> Nav {
     match state.step.clone() {
         Step::TopMenu => handle_top_menu(state, key),
-        Step::SwitchProfile => handle_switch(state, key),
-        Step::AddProfile { ref sub } => handle_add_profile(state, key, sub.clone()),
-        Step::EditProfileMenu => handle_edit_menu(state, key),
-        Step::EditProfileAction { ref target, ref sub } => handle_edit_action(state, key, target.clone(), sub.clone()),
-        Step::DeleteProfile => handle_delete_profile(state, key),
+        Step::SwitchWorkspace => handle_switch(state, key),
+        Step::AddWorkspace { ref sub } => handle_add_workspace(state, key, sub.clone()),
+        Step::EditWorkspaceMenu => handle_edit_menu(state, key),
+        Step::EditWorkspaceAction { ref target, ref sub } => handle_edit_action(state, key, target.clone(), sub.clone()),
+        Step::DeleteWorkspace => handle_delete_workspace(state, key),
     }
 }
 
@@ -266,23 +266,23 @@ fn handle_top_menu(state: &mut SettingsState, key: KeyEvent) -> Nav {
                 match action {
                     "back" => return Nav::Back,
                     "switch" => {
-                        state.refresh_profile_list();
-                        state.step = Step::SwitchProfile;
+                        state.refresh_workspace_list();
+                        state.step = Step::SwitchWorkspace;
                     }
                     "add" => {
                         state.text_input = TextArea::default();
                         state.text_input2 = TextArea::default();
                         // Insert default path
                         state.text_input2.insert_str(&default_config_path().to_string_lossy());
-                        state.step = Step::AddProfile { sub: AddProfileSub::Label };
+                        state.step = Step::AddWorkspace { sub: AddWorkspaceSub::Label };
                     }
                     "edit" => {
-                        state.refresh_profile_list();
-                        state.step = Step::EditProfileMenu;
+                        state.refresh_workspace_list();
+                        state.step = Step::EditWorkspaceMenu;
                     }
                     "delete" => {
-                        state.refresh_profile_list();
-                        state.step = Step::DeleteProfile;
+                        state.refresh_workspace_list();
+                        state.step = Step::DeleteWorkspace;
                     }
                     _ => {}
                 }
@@ -300,19 +300,19 @@ fn handle_switch(state: &mut SettingsState, key: KeyEvent) -> Nav {
             Nav::None
         }
         KeyCode::Up | KeyCode::Char('k') => {
-            state.profile_list.move_up();
+            state.workspace_list.move_up();
             Nav::None
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            state.profile_list.move_down();
+            state.workspace_list.move_down();
             Nav::None
         }
         KeyCode::Enter => {
-            if let Some(idx) = state.profile_list.selected_original_index() {
-                let slug = state.profile_slugs[idx].clone();
-                match set_active_profile(&slug) {
+            if let Some(idx) = state.workspace_list.selected_original_index() {
+                let slug = state.workspace_slugs[idx].clone();
+                match set_active_workspace(&slug) {
                     Ok(_) => {
-                        state.status = format!("Active profile is now \"{slug}\".");
+                        state.status = format!("Active workspace is now \"{slug}\".");
                         state.is_error = false;
                         state.step = Step::TopMenu;
                     }
@@ -328,7 +328,7 @@ fn handle_switch(state: &mut SettingsState, key: KeyEvent) -> Nav {
     }
 }
 
-fn handle_add_profile(state: &mut SettingsState, key: KeyEvent, sub: AddProfileSub) -> Nav {
+fn handle_add_workspace(state: &mut SettingsState, key: KeyEvent, sub: AddWorkspaceSub) -> Nav {
     match key.code {
         KeyCode::Esc => {
             state.step = Step::TopMenu;
@@ -336,7 +336,7 @@ fn handle_add_profile(state: &mut SettingsState, key: KeyEvent, sub: AddProfileS
         }
         KeyCode::Enter => {
             match sub {
-                AddProfileSub::Label => {
+                AddWorkspaceSub::Label => {
                     let label = state.text_input.lines().join("").trim().to_string();
                     let slug = slugify_label(&label);
                     if slug.is_empty() {
@@ -344,17 +344,17 @@ fn handle_add_profile(state: &mut SettingsState, key: KeyEvent, sub: AddProfileS
                         state.is_error = true;
                         return Nav::None;
                     }
-                    if list_profiles().contains_key(&slug) {
-                        state.status = format!("Profile \"{slug}\" already exists.");
+                    if list_workspaces().contains_key(&slug) {
+                        state.status = format!("Workspace \"{slug}\" already exists.");
                         state.is_error = true;
                         return Nav::None;
                     }
                     // Move to path step
                     state.status.clear();
-                    state.step = Step::AddProfile { sub: AddProfileSub::Path };
+                    state.step = Step::AddWorkspace { sub: AddWorkspaceSub::Path };
                     Nav::None
                 }
-                AddProfileSub::Path => {
+                AddWorkspaceSub::Path => {
                     let label_raw = state.text_input.lines().join("").trim().to_string();
                     let slug = slugify_label(&label_raw);
                     let path_raw = state.text_input2.lines().join("").trim().to_string();
@@ -364,9 +364,9 @@ fn handle_add_profile(state: &mut SettingsState, key: KeyEvent, sub: AddProfileS
                         state.is_error = true;
                         return Nav::None;
                     }
-                    match add_profile(&slug, &path) {
+                    match add_workspace(&slug, &path) {
                         Ok(final_slug) => {
-                            state.status = format!("Profile \"{final_slug}\" added.");
+                            state.status = format!("Workspace \"{final_slug}\" added.");
                             state.is_error = false;
                             state.step = Step::TopMenu;
                         }
@@ -381,10 +381,10 @@ fn handle_add_profile(state: &mut SettingsState, key: KeyEvent, sub: AddProfileS
         }
         _ => {
             match sub {
-                AddProfileSub::Label => {
+                AddWorkspaceSub::Label => {
                     state.text_input.input(key);
                 }
-                AddProfileSub::Path => {
+                AddWorkspaceSub::Path => {
                     state.text_input2.input(key);
                 }
             }
@@ -400,24 +400,24 @@ fn handle_edit_menu(state: &mut SettingsState, key: KeyEvent) -> Nav {
             Nav::None
         }
         KeyCode::Up | KeyCode::Char('k') => {
-            state.profile_list.move_up();
+            state.workspace_list.move_up();
             Nav::None
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            state.profile_list.move_down();
+            state.workspace_list.move_down();
             Nav::None
         }
         KeyCode::Enter => {
-            if let Some(idx) = state.profile_list.selected_original_index() {
-                let slug = state.profile_slugs[idx].clone();
+            if let Some(idx) = state.workspace_list.selected_original_index() {
+                let slug = state.workspace_slugs[idx].clone();
                 // Show action menu
                 let action_items = vec![
-                    ("Change path".to_string(), "point this profile at a different file".to_string()),
+                    ("Change path".to_string(), "point this workspace at a different file".to_string()),
                     ("Rename".to_string(), "change the label".to_string()),
                     ("Back".to_string(), "".to_string()),
                 ];
                 state.menu_list = SelectList::new(action_items);
-                state.step = Step::EditProfileAction {
+                state.step = Step::EditWorkspaceAction {
                     target: slug,
                     sub: EditSub::ActionMenu,
                 };
@@ -449,11 +449,11 @@ fn handle_edit_action(state: &mut SettingsState, key: KeyEvent, target: String, 
                     match idx {
                         0 => {
                             // Change path
-                            let profiles = list_profiles();
-                            let old_path = profiles.get(&target).cloned().unwrap_or_default();
+                            let workspaces = list_workspaces();
+                            let old_path = workspaces.get(&target).cloned().unwrap_or_default();
                             state.text_input = TextArea::default();
                             state.text_input.insert_str(&old_path);
-                            state.step = Step::EditProfileAction {
+                            state.step = Step::EditWorkspaceAction {
                                 target,
                                 sub: EditSub::EditPath,
                             };
@@ -462,7 +462,7 @@ fn handle_edit_action(state: &mut SettingsState, key: KeyEvent, target: String, 
                             // Rename
                             state.text_input = TextArea::default();
                             state.text_input.insert_str(&target);
-                            state.step = Step::EditProfileAction {
+                            state.step = Step::EditWorkspaceAction {
                                 target,
                                 sub: EditSub::Rename,
                             };
@@ -484,7 +484,7 @@ fn handle_edit_action(state: &mut SettingsState, key: KeyEvent, target: String, 
             KeyCode::Enter => {
                 let new_path_raw = state.text_input.lines().join("").trim().to_string();
                 let new_path = crate::settings::expand_path(&new_path_raw);
-                match update_profile_path(&target, &new_path) {
+                match update_workspace_path(&target, &new_path) {
                     Ok(_) => {
                         state.status = format!("Path updated for \"{target}\".");
                         state.is_error = false;
@@ -509,7 +509,7 @@ fn handle_edit_action(state: &mut SettingsState, key: KeyEvent, target: String, 
             }
             KeyCode::Enter => {
                 let new_label = state.text_input.lines().join("").trim().to_string();
-                match rename_profile(&target, &new_label) {
+                match rename_workspace(&target, &new_label) {
                     Ok(new_slug) => {
                         state.status = format!("Renamed \"{target}\" → \"{new_slug}\".");
                         state.is_error = false;
@@ -530,26 +530,26 @@ fn handle_edit_action(state: &mut SettingsState, key: KeyEvent, target: String, 
     }
 }
 
-fn handle_delete_profile(state: &mut SettingsState, key: KeyEvent) -> Nav {
+fn handle_delete_workspace(state: &mut SettingsState, key: KeyEvent) -> Nav {
     match key.code {
         KeyCode::Esc => {
             state.step = Step::TopMenu;
             Nav::None
         }
         KeyCode::Up | KeyCode::Char('k') => {
-            state.profile_list.move_up();
+            state.workspace_list.move_up();
             Nav::None
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            state.profile_list.move_down();
+            state.workspace_list.move_down();
             Nav::None
         }
         KeyCode::Enter => {
-            if let Some(idx) = state.profile_list.selected_original_index() {
-                let slug = state.profile_slugs[idx].clone();
-                match remove_profile(&slug) {
+            if let Some(idx) = state.workspace_list.selected_original_index() {
+                let slug = state.workspace_slugs[idx].clone();
+                match remove_workspace(&slug) {
                     Ok(_) => {
-                        state.status = format!("Profile \"{slug}\" deleted.");
+                        state.status = format!("Workspace \"{slug}\" deleted.");
                         state.is_error = false;
                         state.step = Step::TopMenu;
                     }

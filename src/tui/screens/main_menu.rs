@@ -60,7 +60,7 @@ pub enum Nav {
     GoTo(Screen),
 }
 
-pub fn render(f: &mut Frame, state: &mut MainMenuState, profile_label: &str, profile_path: &str, _last_launched_credential: &Option<String>) {
+pub fn render(f: &mut Frame, state: &mut MainMenuState, workspace_label: &str, workspace_path: &str, _last_launched_credential: &Option<String>) {
     let area = f.area();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -71,7 +71,7 @@ pub fn render(f: &mut Frame, state: &mut MainMenuState, profile_label: &str, pro
         ])
         .split(area);
 
-    render_banner(f, chunks[0], profile_label, profile_path);
+    render_banner(f, chunks[0], workspace_label, workspace_path);
     state.list.render(f, chunks[1], false);
     render_footer(f, chunks[2], &[("↑↓", "move"), ("Enter", "select"), ("q", "quit")]);
 }

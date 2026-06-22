@@ -7,11 +7,11 @@ use clap::{Parser, Subcommand};
     version
 )]
 pub struct Cli {
-    /// Use a saved profile for this run only (mutually exclusive with --config)
+    /// Use a saved workspace for this run only (mutually exclusive with --config)
     #[arg(long, value_name = "LABEL", global = true)]
-    pub profile: Option<String>,
+    pub workspace: Option<String>,
 
-    /// Ad-hoc path to a credentials JSON file (mutually exclusive with --profile)
+    /// Ad-hoc path to a credentials JSON file (mutually exclusive with --workspace)
     #[arg(long, value_name = "PATH", global = true)]
     pub config: Option<String>,
 

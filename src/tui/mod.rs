@@ -10,32 +10,32 @@ use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 
 use crate::error::AppError;
-use crate::settings::get_active_profile;
+use crate::settings::get_active_workspace;
 
 use screens::Screen;
 
 pub struct App {
     pub screen: Screen,
-    pub profile_label: String,
-    pub profile_path: String,
+    pub workspace_label: String,
+    pub workspace_path: String,
 }
 
 impl App {
     pub fn new() -> Self {
-        let (label, path) = get_active_profile();
+        let (label, path) = get_active_workspace();
         App {
             screen: Screen::MainMenu(screens::main_menu::MainMenuState::new(
                 crate::settings::get_last_launched_credential(),
             )),
-            profile_label: label,
-            profile_path: path,
+            workspace_label: label,
+            workspace_path: path,
         }
     }
 
-    pub fn refresh_profile(&mut self) {
-        let (label, path) = get_active_profile();
-        self.profile_label = label;
-        self.profile_path = path;
+    pub fn refresh_workspace(&mut self) {
+        let (label, path) = get_active_workspace();
+        self.workspace_label = label;
+        self.workspace_path = path;
     }
 }
 

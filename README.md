@@ -118,56 +118,56 @@ ln -sf "$(pwd)/target/release/claude-launcher" ~/.local/bin/claude-launcher
 
 Two files:
 
-- `$XDG_CONFIG_HOME/claude-launcher/settings.json` — settings (active profile + registered profile paths). Fixed location.
-- `<credentials path>` — credentials JSON, mode `0600`, plaintext. Default: `$XDG_CONFIG_HOME/claude-launcher/providers.json`. Path is driven by the active profile.
+- `$XDG_CONFIG_HOME/claude-launcher/settings.json` — settings (active workspace + registered workspace paths). Fixed location.
+- `<credentials path>` — credentials JSON, mode `0600`, plaintext. Default: `$XDG_CONFIG_HOME/claude-launcher/providers.json`. Path is driven by the active workspace.
 
 > [!WARNING]
 > The credentials file holds API keys in plaintext. Don't commit it, don't sync it to public cloud storage, and review backups before sharing.
 
-### Profiles
+### Workspaces
 
-A profile is a label paired with a credentials file path. Each profile holds its own set of credentials — switch contexts without retyping paths or editing files.
+A workspace is a label paired with a credentials file path. Each workspace holds its own set of credentials — switch contexts without retyping paths or editing files.
 
 **Common setups:**
 
-| Profile | Credentials file | Why |
-|---------|-----------------|-----|
+| Workspace | Credentials file | Why |
+|-----------|-----------------|-----|
 | `default` | `$XDG_CONFIG_HOME/claude-launcher/providers.json` | Personal keys, day-to-day use |
 | `office` | `$XDG_CONFIG_HOME/claude-launcher/work.json` | Work API keys, separate billing |
 | `cheap-models` | `$XDG_CONFIG_HOME/claude-launcher/cheap.json` | Free/low-cost providers only |
 | `ci` | `/etc/claude-launcher-ci.json` | Read-only path injected in CI |
 
-**Manage profiles interactively:**
+**Manage workspaces interactively:**
 
 ```
-claude-launcher → Settings → Manage profiles
+claude-launcher → Settings → Manage workspaces
 ```
 
-From there you can add, rename, change path, delete, or switch the active profile.
+From there you can add, rename, change path, delete, or switch the active workspace.
 
 **CLI overrides** — one-shot, never modify saved settings:
 
 ```bash
-claude-launcher --profile office launch zai          # use "office" profile this run
-claude-launcher --profile office list                # list credentials from "office" profile
-claude-launcher --config /tmp/test.json list         # ad-hoc path, no profile needed
+claude-launcher --workspace office launch zai          # use "office" workspace this run
+claude-launcher --workspace office list                 # list credentials from "office" workspace
+claude-launcher --config /tmp/test.json list            # ad-hoc path, no workspace needed
 ```
 
-`--profile` and `--config` are mutually exclusive.
+`--workspace` and `--config` are mutually exclusive.
 
 **How it works:**
 
-- `$XDG_CONFIG_HOME/claude-launcher/settings.json` stores `{ activeProfile, profiles: { <label>: <path> } }`. Fixed location.
-- Active profile's path drives which credentials file is read and written.
-- On first run, a `default` profile pointing at `$XDG_CONFIG_HOME/claude-launcher/providers.json` is created automatically.
-- Deleting the active profile is blocked — switch first, then delete.
-- Profile labels are slugified (lowercase, non-alphanumerics → `-`).
+- `$XDG_CONFIG_HOME/claude-launcher/settings.json` stores `{ activeWorkspace, workspaces: { <label>: <path> } }`. Fixed location.
+- Active workspace's path drives which credentials file is read and written.
+- On first run, a `default` workspace pointing at `$XDG_CONFIG_HOME/claude-launcher/providers.json` is created automatically.
+- Deleting the active workspace is blocked — switch first, then delete.
+- Workspace labels are slugified (lowercase, non-alphanumerics → `-`).
 
-**Tip:** use `--profile` in shell aliases to switch contexts without touching the active profile:
+**Tip:** use `--workspace` in shell aliases to switch contexts without touching the active workspace:
 
 ```bash
-alias cc-work="claude-launcher --profile office launch"
-alias cc-cheap="claude-launcher --profile cheap-models launch"
+alias cc-work="claude-launcher --workspace office launch"
+alias cc-cheap="claude-launcher --workspace cheap-models launch"
 ```
 
 ## Roadmap

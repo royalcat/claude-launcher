@@ -9,7 +9,7 @@ mod tui;
 use clap::Parser;
 use cli::{Cli, Command};
 use error::AppError;
-use settings::{expand_path, list_profiles, set_runtime_config_path};
+use settings::{expand_path, list_workspaces, set_runtime_config_path};
 
 fn report_fatal(err: &AppError) -> ! {
     match err {
@@ -29,24 +29,24 @@ fn report_fatal(err: &AppError) -> ! {
 }
 
 fn apply_overrides(cli: &Cli) {
-    if cli.profile.is_some() && cli.config.is_some() {
-        eprintln!("\n  --profile and --config are mutually exclusive — pick one.\n");
+    if cli.workspace.is_some() && cli.config.is_some() {
+        eprintln!("\n  --workspace and --config are mutually exclusive — pick one.\n");
         std::process::exit(1);
     }
     if let Some(ref config_path) = cli.config {
         set_runtime_config_path(expand_path(config_path));
         return;
     }
-    if let Some(ref profile) = cli.profile {
-        let profiles = list_profiles();
-        if !profiles.contains_key(profile.as_str()) {
-            let available = profiles.keys().cloned().collect::<Vec<_>>().join(", ");
+    if let Some(ref workspace) = cli.workspace {
+        let workspaces = list_workspaces();
+        if !workspaces.contains_key(workspace.as_str()) {
+            let available = workspaces.keys().cloned().collect::<Vec<_>>().join(", ");
             let available = if available.is_empty() { "(none)".to_string() } else { available };
-            eprintln!("\n  Unknown profile: \"{profile}\"");
-            eprintln!("  Available profiles: {available}\n");
+            eprintln!("\n  Unknown workspace: \"{workspace}\"");
+            eprintln!("  Available workspaces: {available}\n");
             std::process::exit(1);
         }
-        set_runtime_config_path(profiles[profile.as_str()].clone());
+        set_runtime_config_path(workspaces[workspace.as_str()].clone());
     }
 }
 

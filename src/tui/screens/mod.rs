@@ -40,7 +40,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     match &mut app.screen {
         Screen::MainMenu(state) => {
             let last = crate::settings::get_last_launched_credential();
-            main_menu::render(f, state, &app.profile_label, &app.profile_path, &last)
+            main_menu::render(f, state, &app.workspace_label, &app.workspace_path, &last)
         }
         Screen::Launch(state) => launch::render(f, state),
         Screen::Add(state) => add::render(f, state),
@@ -85,7 +85,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Action {
             match nav {
                 launch::Nav::None => Action::Continue,
                 launch::Nav::Back => {
-                    app.refresh_profile();
+                    app.refresh_workspace();
                     let last = crate::settings::get_last_launched_credential();
                     app.screen = Screen::MainMenu(main_menu::MainMenuState::new(last));
                     Action::Continue
@@ -109,7 +109,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Action {
             match nav {
                 add::Nav::None => Action::Continue,
                 add::Nav::Back => {
-                    app.refresh_profile();
+                    app.refresh_workspace();
                     let last = crate::settings::get_last_launched_credential();
                     app.screen = Screen::MainMenu(main_menu::MainMenuState::new(last));
                     Action::Continue
@@ -121,7 +121,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Action {
             match nav {
                 edit::Nav::None => Action::Continue,
                 edit::Nav::Back => {
-                    app.refresh_profile();
+                    app.refresh_workspace();
                     let last = crate::settings::get_last_launched_credential();
                     app.screen = Screen::MainMenu(main_menu::MainMenuState::new(last));
                     Action::Continue
@@ -137,7 +137,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Action {
             match nav {
                 delete::Nav::None => Action::Continue,
                 delete::Nav::Back => {
-                    app.refresh_profile();
+                    app.refresh_workspace();
                     let last = crate::settings::get_last_launched_credential();
                     app.screen = Screen::MainMenu(main_menu::MainMenuState::new(last));
                     Action::Continue
@@ -153,7 +153,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Action {
             match nav {
                 settings::Nav::None => Action::Continue,
                 settings::Nav::Back => {
-                    app.refresh_profile();
+                    app.refresh_workspace();
                     let last = crate::settings::get_last_launched_credential();
                     app.screen = Screen::MainMenu(main_menu::MainMenuState::new(last));
                     Action::Continue

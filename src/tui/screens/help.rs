@@ -9,7 +9,7 @@ use ratatui::{
 
 use super::widgets::render_footer;
 use crate::providers::PROVIDERS;
-use crate::settings::{get_active_profile, get_config_path, list_profiles, settings_path};
+use crate::settings::{get_active_workspace, get_config_path, list_workspaces, settings_path};
 use crate::tui::theme::*;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -26,8 +26,8 @@ pub fn render(f: &mut Frame) {
         .constraints([Constraint::Min(1), Constraint::Length(2)])
         .split(area);
 
-    let (active_label, _) = get_active_profile();
-    let profiles = list_profiles();
+    let (active_label, _) = get_active_workspace();
+    let workspaces = list_workspaces();
     let creds_path = get_config_path();
     let settings_file = settings_path().to_string_lossy().into_owned();
 
@@ -127,12 +127,12 @@ pub fn render(f: &mut Frame) {
     lines.push(Line::raw(""));
     lines.push(Line::from(vec![
         Span::raw("  "),
-        Span::styled("Profiles", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled("Workspaces", Style::default().add_modifier(Modifier::BOLD)),
     ]));
 
-    let mut sorted_profiles: Vec<(String, String)> = profiles.into_iter().collect();
-    sorted_profiles.sort_by(|a, b| a.0.cmp(&b.0));
-    for (label, path) in &sorted_profiles {
+    let mut sorted_workspaces: Vec<(String, String)> = workspaces.into_iter().collect();
+    sorted_workspaces.sort_by(|a, b| a.0.cmp(&b.0));
+    for (label, path) in &sorted_workspaces {
         let is_active = label == &active_label;
         let marker = if is_active {
             Span::styled(" (active)", Style::default().fg(GREEN))

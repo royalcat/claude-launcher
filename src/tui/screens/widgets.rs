@@ -11,7 +11,7 @@ use crate::tui::theme::*;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Render the banner bar at the top of the screen.
-pub fn render_banner(f: &mut Frame, area: Rect, profile_label: &str, profile_path: &str) {
+pub fn render_banner(f: &mut Frame, area: Rect, workspace_label: &str, workspace_path: &str) {
     let cwd = std::env::current_dir().unwrap_or_default().to_string_lossy().into_owned();
     let home = dirs::home_dir().unwrap_or_default().to_string_lossy().into_owned();
     let short_cwd = if cwd.starts_with(&home) {
@@ -26,14 +26,14 @@ pub fn render_banner(f: &mut Frame, area: Rect, profile_label: &str, profile_pat
         orange("claude-launcher"),
         dim(&format!("  ·  v{VERSION}  ·  {short_cwd}")),
     ]);
-    let profile_line = Line::from(vec![
+    let workspace_line = Line::from(vec![
         Span::raw("  "),
-        dim("Profile: "),
-        Span::styled(profile_label, Style::default().add_modifier(Modifier::BOLD)),
-        dim(&format!("  ·  {profile_path}")),
+        dim("Workspace: "),
+        Span::styled(workspace_label, Style::default().add_modifier(Modifier::BOLD)),
+        dim(&format!("  ·  {workspace_path}")),
     ]);
 
-    let text = vec![Line::from(dim(&rule)), title_line, Line::from(dim(&rule)), profile_line, Line::raw("")];
+    let text = vec![Line::from(dim(&rule)), title_line, Line::from(dim(&rule)), workspace_line, Line::raw("")];
 
     let p = Paragraph::new(text);
     f.render_widget(p, area);

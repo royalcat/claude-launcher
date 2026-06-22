@@ -39,7 +39,7 @@ src/
 ├── cli.rs             Clap structs (Cli, Command enum)
 ├── error.rs           AppError, ConfigCorruptError, ConfigAccessError
 ├── config.rs          Credential CRUD; load/save JSON at 0600; slugify_name, mask_secret
-├── settings.rs        Profile CRUD; settings.json load/save; runtime overrides via OnceLock
+├── settings.rs        Workspace CRUD; settings.json load/save; runtime overrides via OnceLock
 ├── providers/
 │   └── mod.rs         16 static ProviderDef entries; FieldType enum; field! macro; get_provider()
 ├── actions/
@@ -85,8 +85,8 @@ Slugs are produced by `slugify_name(name)` in `config.rs`: lowercase, non-alphan
 ### Settings file (`$XDG_CONFIG_HOME/claude-launcher/settings.json`)
 ```json
 {
-  "activeProfile": "default",
-  "profiles": {
+  "activeWorkspace": "default",
+  "workspaces": {
     "default": "$XDG_CONFIG_HOME/claude-launcher/providers.json",
     "work": "$XDG_CONFIG_HOME/claude-launcher/work.json"
   },
@@ -131,7 +131,7 @@ Each screen module (`screens/<name>.rs`) exposes:
 - `pub fn handle_key(state: &mut <State>, key: KeyEvent) -> Nav` — returns a `Nav` enum
 - A `Nav` enum with variants like `None`, `Back`, `Launch { .. }`, `AddCredentials`
 
-The central router in `screens/mod.rs` translates `Nav` → `Action` and updates `app.screen` by replacing it with a new state struct. `app.refresh_profile()` is called on every `Back` to pick up settings changes.
+The central router in `screens/mod.rs` translates `Nav` → `Action` and updates `app.screen` by replacing it with a new state struct. `app.refresh_workspace()` is called on every `Back` to pick up settings changes.
 
 ### SelectList widget (`screens/widgets.rs`)
 Filterable, scrollable list used across multiple screens.
@@ -157,13 +157,13 @@ Filterable, scrollable list used across multiple screens.
 
 | Flag | Description |
 |------|-------------|
-| `--profile <LABEL>` | Use a saved profile for this run only |
-| `--config <PATH>` | Ad-hoc credentials path, no profile needed |
+| `--workspace <LABEL>` | Use a saved workspace for this run only |
+| `--config <PATH>` | Ad-hoc credentials path, no workspace needed |
 | `--credentials <SLUG>` | Legacy direct-launch flag |
 | `--print` | Print env vars + command instead of launching |
 | `-- <args>` | Pass-through args forwarded verbatim to `claude` |
 
-`--profile` and `--config` are mutually exclusive. They are stored in a `OnceLock<Mutex<Option<String>>>` in `settings.rs` and read by `get_config_path()` on every credentials access.
+`--workspace` and `--config` are mutually exclusive. They are stored in a `OnceLock<Mutex<Option<String>>>` in `settings.rs` and read by `get_config_path()` on every credentials access.
 
 ---
 
@@ -202,6 +202,6 @@ When adding tests, prefer integration tests in `tests/` that exercise CLI subcom
 - **`Action::LaunchClaude` timing**: raw mode MUST be disabled before spawning `claude`. The current implementation in `tui/mod.rs` does this correctly — don't move the teardown after the spawn.
 - **Empty `slugify_name` result**: if a user enters a name that produces an empty slug (e.g. all symbols), `add.rs` and `edit.rs` show an error and refuse to save. Always check the slug before saving.
 - **Credential file permissions**: `save_config()` sets 0600 on Unix via `fs::set_permissions`. On non-Unix this is a no-op — don't remove the `#[cfg(unix)]` guard.
-- **Profile label vs credentials slug**: `slugify_label` (settings) and `slugify_name` (config) are different functions with the same logic. They're separate intentionally — profile labels and credential slugs live in different namespaces.
-- **`OnceLock` override order**: `set_runtime_config_path()` and `set_runtime_profile()` must be called **before** any credential access. `main.rs` does this immediately after parsing CLI args.
-- **Profile vs credential**: profiles (settings.rs) are labels pointing to config file paths. Credentials (config.rs) are specific saved sets within a config file. They live in different namespaces. The "Launch Last" feature stores a credential slug, not a profile label — confusing the two means the wrong thing gets launched.
+- **Workspace label vs credentials slug**: `slugify_label` (settings) and `slugify_name` (config) are different functions with the same logic. They're separate intentionally — workspace labels and credential slugs live in different namespaces.
+- **`OnceLock` override order**: `set_runtime_config_path()` must be called **before** any credential access. `main.rs` does this immediately after parsing CLI args.
+- **Workspace vs credential**: workspaces (settings.rs) are labels pointing to config file paths. Credentials (config.rs) are specific saved sets within a config file. They live in different namespaces. The "Launch Last" feature stores a credential slug, not a workspace label — confusing the two means the wrong thing gets launched.

@@ -4,6 +4,8 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
 };
 
+use crate::tui::screens::widgets::BANNER_HEIGHT;
+
 use super::Screen;
 use super::widgets::{SelectList, render_banner, render_footer};
 
@@ -60,18 +62,18 @@ pub enum Nav {
     GoTo(Screen),
 }
 
-pub fn render(f: &mut Frame, state: &mut MainMenuState, workspace_label: &str, workspace_path: &str, _last_launched_profile: &Option<String>) {
+pub fn render(f: &mut Frame, state: &mut MainMenuState, workspace_label: &str, _last_launched_profile: &Option<String>) {
     let area = f.area();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(5), // banner
-            Constraint::Min(10),   // menu list
-            Constraint::Length(2), // footer
+            Constraint::Length(BANNER_HEIGHT), // banner
+            Constraint::Min(10),               // menu list
+            Constraint::Length(2),             // footer
         ])
         .split(area);
 
-    render_banner(f, chunks[0], workspace_label, workspace_path);
+    render_banner(f, chunks[0], workspace_label);
     state.list.render(f, chunks[1], false);
     render_footer(f, chunks[2], &[("↑↓", "move"), ("Enter", "select"), ("q", "quit")]);
 }

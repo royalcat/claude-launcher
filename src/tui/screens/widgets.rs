@@ -3,15 +3,16 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Paragraph},
+    widgets::{Block, Borders, Paragraph},
 };
 
 use crate::tui::theme::*;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const BANNER_HEIGHT: u16 = 3;
 
 /// Render the banner bar at the top of the screen.
-pub fn render_banner(f: &mut Frame, area: Rect, workspace_label: &str, workspace_path: &str) {
+pub fn render_banner(f: &mut Frame, area: Rect, workspace_label: &str) {
     let cwd = std::env::current_dir().unwrap_or_default().to_string_lossy().into_owned();
     let home = dirs::home_dir().unwrap_or_default().to_string_lossy().into_owned();
     let short_cwd = if cwd.starts_with(&home) {
@@ -20,23 +21,28 @@ pub fn render_banner(f: &mut Frame, area: Rect, workspace_label: &str, workspace
         cwd
     };
 
-    let rule = "─".repeat(area.width.saturating_sub(2) as usize);
+    let block = Block::default()
+        .borders(Borders::TOP | Borders::BOTTOM)
+        .border_style(Style::default().fg(DIM_COLOR));
+
+    let inner = block.inner(area);
+    f.render_widget(&block, area);
+
+    let chunks = Layout::horizontal([Constraint::Percentage(60), Constraint::Percentage(40)]).split(inner);
+
     let title_line = Line::from(vec![
-        Span::raw("  "),
+        Span::raw(" "),
         orange("claude-launcher"),
         dim(&format!("  ·  v{VERSION}  ·  {short_cwd}")),
     ]);
     let workspace_line = Line::from(vec![
-        Span::raw("  "),
         dim("Workspace: "),
         Span::styled(workspace_label, Style::default().add_modifier(Modifier::BOLD)),
-        dim(&format!("  ·  {workspace_path}")),
+        Span::raw(" "),
     ]);
 
-    let text = vec![Line::from(dim(&rule)), title_line, Line::from(dim(&rule)), workspace_line, Line::raw("")];
-
-    let p = Paragraph::new(text);
-    f.render_widget(p, area);
+    f.render_widget(Paragraph::new(title_line), chunks[0]);
+    f.render_widget(Paragraph::new(workspace_line).alignment(Alignment::Right), chunks[1]);
 }
 
 /// A simple list widget with keyboard navigation.

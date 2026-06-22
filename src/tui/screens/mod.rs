@@ -40,7 +40,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     match &mut app.screen {
         Screen::MainMenu(state) => {
             let last = crate::settings::get_last_launched_profile();
-            main_menu::render(f, state, &app.workspace_label, &app.workspace_path, &last)
+            main_menu::render(f, state, &app.workspace_label, &last)
         }
         Screen::Launch(state) => launch::render(f, state),
         Screen::Add(state) => add::render(f, state),

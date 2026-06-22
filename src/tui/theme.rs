@@ -3,7 +3,7 @@ use ratatui::text::Span;
 
 // Brand accent: warm orange (ANSI 256 color 208)
 pub const ORANGE: Color = Color::Indexed(208);
-pub const DIM_COLOR: Color = Color::DarkGray;
+pub const DIM_COLOR: Color = Color::Gray;
 pub const GREEN: Color = Color::Green;
 pub const RED: Color = Color::Red;
 pub const YELLOW: Color = Color::Yellow;

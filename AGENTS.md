@@ -6,7 +6,7 @@ This file is the authoritative reference for AI agents working on this project. 
 
 ## Project overview
 
-**claude-launcher** is a Rust CLI tool that manages inference provider credentials for [Claude Code](https://docs.anthropic.com/claude-code). It injects credentials as environment variables at launch time, so `~/.claude/settings.json` is never modified.
+**claude-launcher** is a Rust CLI tool that manages inference provider profiles for [Claude Code](https://docs.anthropic.com/claude-code). It injects profile env vars at launch time, so `~/.claude/settings.json` is never modified.
 
 The tool has two interaction modes:
 - **Non-interactive** (`list`, `launch <slug>`, `--print`): plain stdout, no terminal raw mode.
@@ -38,13 +38,13 @@ src/
 ├── main.rs            Entry point: parse CLI, set overrides, dispatch to action or TUI
 ├── cli.rs             Clap structs (Cli, Command enum)
 ├── error.rs           AppError, ConfigCorruptError, ConfigAccessError
-├── config.rs          Credential CRUD; load/save JSON at 0600; slugify_name, mask_secret
+├── config.rs          Profile CRUD; load/save JSON at 0600; slugify_name, mask_secret
 ├── settings.rs        Workspace CRUD; settings.json load/save; runtime overrides via OnceLock
 ├── providers/
 │   └── mod.rs         16 static ProviderDef entries; FieldType enum; field! macro; get_provider()
 ├── actions/
 │   ├── mod.rs         Re-exports
-│   ├── list.rs        Non-interactive credential listing (plain stdout)
+│   ├── list.rs        Non-interactive profile listing (plain stdout)
 │   └── launch.rs      check_claude_installed, build_command, launch_claude, launch_with_slug
 └── tui/
     ├── mod.rs         App struct; run() / run_app() event loop; crossterm setup/teardown
@@ -65,10 +65,10 @@ src/
 
 ## Key data shapes
 
-### Credentials file (`$XDG_CONFIG_HOME/claude-launcher/providers.json`, mode 0600)
+### Profiles file (`$XDG_CONFIG_HOME/claude-launcher/providers.json`, mode 0600)
 ```json
 {
-  "credentials": {
+  "profiles": {
     "<slug>": {
       "name": "Human-readable label",
       "provider": "<provider-id>",
@@ -90,7 +90,7 @@ Slugs are produced by `slugify_name(name)` in `config.rs`: lowercase, non-alphan
     "default": "$XDG_CONFIG_HOME/claude-launcher/providers.json",
     "work": "$XDG_CONFIG_HOME/claude-launcher/work.json"
   },
-  "lastLaunchedCredential": "openrouter-anthropic"
+  "lastLaunchedProfile": "openrouter-anthropic"
 }
 ```
 `serde(rename_all = "camelCase")` is applied to `RawSettings`. `~` in paths is expanded by `expand_path()` in `settings.rs`.
@@ -103,9 +103,9 @@ Slugs are produced by `slugify_name(name)` in `config.rs`: lowercase, non-alphan
 ## Providers
 
 Providers are **statically compiled in** `src/providers/mod.rs`. There is no runtime extensibility. Each `ProviderDef` has:
-- `id`: used to look up a provider by slug and stored in credentials JSON
+- `id`: used to look up a provider by slug and stored in profiles JSON
 - `name`: displayed in the TUI picker
-- `fields: &'static [ProviderField]`: the form fields shown when adding/editing credentials
+- `fields: &'static [ProviderField]`: the form fields shown when adding/editing profiles
 
 `FieldType` variants:
 - `Url` — rendered as a plain text area, no masking
@@ -129,7 +129,7 @@ Each screen module (`screens/<name>.rs`) exposes:
 - A state struct (e.g. `AddState`, `EditState`) — owns all mutable UI state
 - `pub fn render(f: &mut Frame, state: &mut <State>)` — pure rendering
 - `pub fn handle_key(state: &mut <State>, key: KeyEvent) -> Nav` — returns a `Nav` enum
-- A `Nav` enum with variants like `None`, `Back`, `Launch { .. }`, `AddCredentials`
+- A `Nav` enum with variants like `None`, `Back`, `Launch { .. }`, `AddProfile`
 
 The central router in `screens/mod.rs` translates `Nav` → `Action` and updates `app.screen` by replacing it with a new state struct. `app.refresh_workspace()` is called on every `Back` to pick up settings changes.
 
@@ -141,7 +141,7 @@ Filterable, scrollable list used across multiple screens.
 - `render(f, area, show_filter)` — draws the list with optional filter indicator
 
 ### Conditional menu items (`main_menu.rs`)
-`MainMenuState` has an `actions: Vec<&'static str>` parallel to `list.items`. `new()` uses `filter_map` to build items conditionally (e.g. hide "Launch Last" when no credential has been launched), collecting action slugs in `actions`. `handle_key` indexes into `state.actions[idx]` — never into the static `MENU_ITEMS` array, because filtered items have different indices.
+`MainMenuState` has an `actions: Vec<&'static str>` parallel to `list.items`. `new()` uses `filter_map` to build items conditionally (e.g. hide "Launch Last" when no profile has been launched), collecting action slugs in `actions`. `handle_key` indexes into `state.actions[idx]` — never into the static `MENU_ITEMS` array, because filtered items have different indices.
 
 ### tui-textarea usage
 - `TextArea<'static>` — borrow lifetime must be `'static` for storage in state structs
@@ -158,12 +158,12 @@ Filterable, scrollable list used across multiple screens.
 | Flag | Description |
 |------|-------------|
 | `--workspace <LABEL>` | Use a saved workspace for this run only |
-| `--config <PATH>` | Ad-hoc credentials path, no workspace needed |
-| `--credentials <SLUG>` | Legacy direct-launch flag |
+| `--config <PATH>` | Ad-hoc profiles path, no workspace needed |
+| `--profiles <SLUG>` | Legacy direct-launch flag |
 | `--print` | Print env vars + command instead of launching |
 | `-- <args>` | Pass-through args forwarded verbatim to `claude` |
 
-`--workspace` and `--config` are mutually exclusive. They are stored in a `OnceLock<Mutex<Option<String>>>` in `settings.rs` and read by `get_config_path()` on every credentials access.
+`--workspace` and `--config` are mutually exclusive. They are stored in a `OnceLock<Mutex<Option<String>>>` in `settings.rs` and read by `get_config_path()` on every profiles access.
 
 ---
 
@@ -201,7 +201,7 @@ When adding tests, prefer integration tests in `tests/` that exercise CLI subcom
 - **Terminal not restored on panic**: the `run()` function uses `ok()` to suppress teardown errors, but a panic in `run_app()` will leave the terminal in raw mode. Consider adding a panic hook if this becomes an issue.
 - **`Action::LaunchClaude` timing**: raw mode MUST be disabled before spawning `claude`. The current implementation in `tui/mod.rs` does this correctly — don't move the teardown after the spawn.
 - **Empty `slugify_name` result**: if a user enters a name that produces an empty slug (e.g. all symbols), `add.rs` and `edit.rs` show an error and refuse to save. Always check the slug before saving.
-- **Credential file permissions**: `save_config()` sets 0600 on Unix via `fs::set_permissions`. On non-Unix this is a no-op — don't remove the `#[cfg(unix)]` guard.
-- **Workspace label vs credentials slug**: `slugify_label` (settings) and `slugify_name` (config) are different functions with the same logic. They're separate intentionally — workspace labels and credential slugs live in different namespaces.
-- **`OnceLock` override order**: `set_runtime_config_path()` must be called **before** any credential access. `main.rs` does this immediately after parsing CLI args.
-- **Workspace vs credential**: workspaces (settings.rs) are labels pointing to config file paths. Credentials (config.rs) are specific saved sets within a config file. They live in different namespaces. The "Launch Last" feature stores a credential slug, not a workspace label — confusing the two means the wrong thing gets launched.
+- **Profile file permissions**: `save_config()` sets 0600 on Unix via `fs::set_permissions`. On non-Unix this is a no-op — don't remove the `#[cfg(unix)]` guard.
+- **Workspace label vs profile slug**: `slugify_label` (settings) and `slugify_name` (config) are different functions with the same logic. They're separate intentionally — workspace labels and profile slugs live in different namespaces.
+- **`OnceLock` override order**: `set_runtime_config_path()` must be called **before** any profile access. `main.rs` does this immediately after parsing CLI args.
+- **Workspace vs profile**: workspaces (settings.rs) are labels pointing to config file paths. Profiles (config.rs) are specific saved sets within a config file. They live in different namespaces. The "Launch Last" feature stores a profile slug, not a workspace label — confusing the two means the wrong thing gets launched.

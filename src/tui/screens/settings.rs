@@ -40,7 +40,7 @@ enum EditSub {
 
 const TOP_ITEMS: &[(&str, &str, &str)] = &[
     ("Switch workspace", "pick which workspace is active", "switch"),
-    ("Add workspace", "register a new credentials file", "add"),
+    ("Add workspace", "register a new profiles file", "add"),
     ("Edit workspace", "rename or change a workspace path", "edit"),
     ("Delete workspace", "remove a workspace (cannot be active)", "delete"),
     ("Back", "", "back"),
@@ -131,7 +131,7 @@ pub fn render(f: &mut Frame, state: &mut SettingsState) {
         Step::AddWorkspace { sub } => {
             let (prompt, hint) = match sub {
                 AddWorkspaceSub::Label => ("Workspace label:", "e.g. personal, office, cheap-models"),
-                AddWorkspaceSub::Path => ("Path to credentials JSON:", "~ expands to home directory"),
+                AddWorkspaceSub::Path => ("Path to profiles JSON:", "~ expands to home directory"),
             };
             render_text_input_step(f, state, area, "Add Workspace", prompt, hint);
         }

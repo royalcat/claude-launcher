@@ -21,7 +21,7 @@ claude-launcher
 
 Claude Code reads provider settings from `~/.claude/settings.json`. Switching providers normally means hand-editing that file — slow, error-prone, breaks flow.
 
-Claude Launcher injects credentials at runtime instead:
+Claude Launcher injects profiles at runtime instead:
 
 - Environment variables override settings per-launch
 - Your `settings.json` stays untouched
@@ -45,10 +45,10 @@ Anthropic's hosted Claude Code requires a paid plan or API credits. Many third-p
 ## Features
 
 - Instant provider switching from a menu or by slug
-- Multiple credential sets per provider (work / personal / project)
+- Multiple profiles per provider (work / personal / project)
 - Zero changes to `~/.claude/settings.json`
 - Works with cloud APIs and local runtimes (Ollama, LM Studio, vLLM)
-- Credential file stored at `0600` permissions
+- Profiles file stored at `0600` permissions
 - Args pass-through to `claude` for model overrides and flags
 - Scriptable for CI pipelines via `--print`
 
@@ -58,10 +58,10 @@ Anthropic's hosted Claude Code requires a paid plan or API credits. Many third-p
 # Interactive full-screen TUI (add, edit, launch, list, settings)
 claude-launcher
 
-# Pick credentials interactively, then launch claude
+# Pick a profile interactively, then launch claude
 claude-launcher launch
 
-# Launch directly with a saved credential slug
+# Launch directly with a saved profile slug
 claude-launcher launch zai-personal
 
 # Forward arguments to claude
@@ -73,9 +73,9 @@ claude-launcher launch zai-personal -- --model sonnet
 | Command | Description |
 |---------|-------------|
 | `claude-launcher` | Interactive full-screen TUI |
-| `claude-launcher list` | List saved credentials |
-| `claude-launcher launch` | Pick credentials interactively, then launch |
-| `claude-launcher launch <slug>` | Launch with a specific credential |
+| `claude-launcher list` | List saved profiles |
+| `claude-launcher launch` | Pick a profile interactively, then launch |
+| `claude-launcher launch <slug>` | Launch with a specific profile |
 | `claude-launcher launch <slug> --print` | Print env vars and command, don't spawn |
 | `claude-launcher launch <slug> -- <args>` | Forward args verbatim to `claude` |
 
@@ -119,18 +119,18 @@ ln -sf "$(pwd)/target/release/claude-launcher" ~/.local/bin/claude-launcher
 Two files:
 
 - `$XDG_CONFIG_HOME/claude-launcher/settings.json` — settings (active workspace + registered workspace paths). Fixed location.
-- `<credentials path>` — credentials JSON, mode `0600`, plaintext. Default: `$XDG_CONFIG_HOME/claude-launcher/providers.json`. Path is driven by the active workspace.
+- `<profiles path>` — profiles JSON, mode `0600`, plaintext. Default: `$XDG_CONFIG_HOME/claude-launcher/providers.json`. Path is driven by the active workspace.
 
 > [!WARNING]
-> The credentials file holds API keys in plaintext. Don't commit it, don't sync it to public cloud storage, and review backups before sharing.
+> The profiles file holds API keys in plaintext. Don't commit it, don't sync it to public cloud storage, and review backups before sharing.
 
 ### Workspaces
 
-A workspace is a label paired with a credentials file path. Each workspace holds its own set of credentials — switch contexts without retyping paths or editing files.
+A workspace is a label paired with a profiles file path. Each workspace holds its own set of profiles — switch contexts without retyping paths or editing files.
 
 **Common setups:**
 
-| Workspace | Credentials file | Why |
+| Workspace | Profiles file | Why |
 |-----------|-----------------|-----|
 | `default` | `$XDG_CONFIG_HOME/claude-launcher/providers.json` | Personal keys, day-to-day use |
 | `office` | `$XDG_CONFIG_HOME/claude-launcher/work.json` | Work API keys, separate billing |
@@ -149,7 +149,7 @@ From there you can add, rename, change path, delete, or switch the active worksp
 
 ```bash
 claude-launcher --workspace office launch zai          # use "office" workspace this run
-claude-launcher --workspace office list                 # list credentials from "office" workspace
+claude-launcher --workspace office list                 # list profiles from "office" workspace
 claude-launcher --config /tmp/test.json list            # ad-hoc path, no workspace needed
 ```
 
@@ -158,7 +158,7 @@ claude-launcher --config /tmp/test.json list            # ad-hoc path, no worksp
 **How it works:**
 
 - `$XDG_CONFIG_HOME/claude-launcher/settings.json` stores `{ activeWorkspace, workspaces: { <label>: <path> } }`. Fixed location.
-- Active workspace's path drives which credentials file is read and written.
+- Active workspace's path drives which profiles file is read and written.
 - On first run, a `default` workspace pointing at `$XDG_CONFIG_HOME/claude-launcher/providers.json` is created automatically.
 - Deleting the active workspace is blocked — switch first, then delete.
 - Workspace labels are slugified (lowercase, non-alphanumerics → `-`).
@@ -172,4 +172,4 @@ alias cc-cheap="claude-launcher --workspace cheap-models launch"
 
 ## Roadmap
 
-- At-rest encryption for credentials files
+- At-rest encryption for profiles files

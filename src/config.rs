@@ -8,10 +8,10 @@ use crate::error::{AppError, ConfigAccessError, ConfigCorruptError};
 use crate::settings::get_config_path;
 
 // Disk shape:
-// { "credentials": { "<slug>": { "name": "...", "provider": "<id>", "env": {...} } } }
+// { "profiles": { "<slug>": { "name": "...", "provider": "<id>", "env": {...} } } }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Credential {
+pub struct Profile {
     pub name: String,
     pub provider: String,
     pub env: HashMap<String, String>,
@@ -20,7 +20,7 @@ pub struct Credential {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
-    pub credentials: HashMap<String, Credential>,
+    pub profiles: HashMap<String, Profile>,
 }
 
 pub fn load_config() -> Result<Config, AppError> {
@@ -48,9 +48,9 @@ pub fn load_config() -> Result<Config, AppError> {
         cause: e.to_string(),
     })?;
 
-    // Ensure credentials key exists
-    if !parsed.get("credentials").map(|v| v.is_object()).unwrap_or(false) {
-        parsed["credentials"] = serde_json::json!({});
+    // Ensure profiles key exists
+    if !parsed.get("profiles").map(|v| v.is_object()).unwrap_or(false) {
+        parsed["profiles"] = serde_json::json!({});
     }
 
     let config: Config = serde_json::from_value(parsed).map_err(|e| ConfigCorruptError {
@@ -98,32 +98,32 @@ pub fn save_config(config: &Config) -> Result<(), AppError> {
     Ok(())
 }
 
-pub fn get_all_credentials() -> Result<HashMap<String, Credential>, AppError> {
-    Ok(load_config()?.credentials)
+pub fn get_all_profiles() -> Result<HashMap<String, Profile>, AppError> {
+    Ok(load_config()?.profiles)
 }
 
-pub fn get_credential(slug: &str) -> Result<Option<Credential>, AppError> {
-    Ok(load_config()?.credentials.remove(slug))
+pub fn get_profile(slug: &str) -> Result<Option<Profile>, AppError> {
+    Ok(load_config()?.profiles.remove(slug))
 }
 
-pub fn save_credential(slug: &str, cred: Credential) -> Result<(), AppError> {
+pub fn save_profile(slug: &str, profile: Profile) -> Result<(), AppError> {
     let mut config = load_config()?;
-    config.credentials.insert(slug.to_string(), cred);
+    config.profiles.insert(slug.to_string(), profile);
     save_config(&config)
 }
 
-pub fn remove_credential(slug: &str) -> Result<(), AppError> {
+pub fn remove_profile(slug: &str) -> Result<(), AppError> {
     let mut config = load_config()?;
-    config.credentials.remove(slug);
+    config.profiles.remove(slug);
     save_config(&config)
 }
 
-pub fn rename_credential(old_slug: &str, new_slug: &str, cred: Credential) -> Result<(), AppError> {
+pub fn rename_profile(old_slug: &str, new_slug: &str, profile: Profile) -> Result<(), AppError> {
     let mut config = load_config()?;
     if old_slug != new_slug {
-        config.credentials.remove(old_slug);
+        config.profiles.remove(old_slug);
     }
-    config.credentials.insert(new_slug.to_string(), cred);
+    config.profiles.insert(new_slug.to_string(), profile);
     save_config(&config)
 }
 

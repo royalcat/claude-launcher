@@ -25,7 +25,7 @@ impl App {
         let (label, path) = get_active_workspace();
         App {
             screen: Screen::MainMenu(screens::main_menu::MainMenuState::new(
-                crate::settings::get_last_launched_credential(),
+                crate::settings::get_last_launched_profile(),
             )),
             workspace_label: label,
             workspace_path: path,

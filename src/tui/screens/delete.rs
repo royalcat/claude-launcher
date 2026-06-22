@@ -8,11 +8,11 @@ use ratatui::{
 };
 
 use super::widgets::{SelectList, render_footer, render_status};
-use crate::config::{get_all_credentials, remove_credential};
+use crate::config::{get_all_profiles, remove_profile};
 use crate::tui::theme::*;
 
 enum Step {
-    PickCredential,
+    PickProfile,
     Confirm,
 }
 
@@ -30,17 +30,17 @@ pub struct DeleteState {
 
 impl DeleteState {
     pub fn new() -> Self {
-        let all = get_all_credentials().unwrap_or_default();
+        let all = get_all_profiles().unwrap_or_default();
         let mut slugs: Vec<String> = all.keys().cloned().collect();
         slugs.sort();
         let empty = slugs.is_empty();
         let items: Vec<(String, String)> = if empty {
-            vec![("Add credentials".to_string(), "".to_string())]
+            vec![("Add profile".to_string(), "".to_string())]
         } else {
             slugs.iter().map(|s| (all[s].name.clone(), all[s].provider.clone())).collect()
         };
         DeleteState {
-            step: Step::PickCredential,
+            step: Step::PickProfile,
             list: SelectList::new(items),
             slugs,
             selected_slug: None,
@@ -56,13 +56,13 @@ impl DeleteState {
 pub enum Nav {
     None,
     Back,
-    AddCredentials,
+    AddProfile,
 }
 
 pub fn render(f: &mut Frame, state: &mut DeleteState) {
     let area = f.area();
     match state.step {
-        Step::PickCredential => render_picker(f, state, area),
+        Step::PickProfile => render_picker(f, state, area),
         Step::Confirm => render_confirm(f, state, area),
     }
 }
@@ -75,7 +75,7 @@ fn render_picker(f: &mut Frame, state: &mut DeleteState, area: Rect) {
 
     let title = Paragraph::new(Line::from(vec![
         Span::raw("  "),
-        Span::styled("Which credentials to delete?", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled("Which profile to delete?", Style::default().add_modifier(Modifier::BOLD)),
     ]));
     f.render_widget(title, chunks[0]);
     state.list.render(f, chunks[1], false);
@@ -125,7 +125,7 @@ fn render_confirm(f: &mut Frame, state: &mut DeleteState, area: Rect) {
 
 pub fn handle_key(state: &mut DeleteState, key: KeyEvent) -> Nav {
     match state.step {
-        Step::PickCredential => handle_picker_key(state, key),
+        Step::PickProfile => handle_picker_key(state, key),
         Step::Confirm => handle_confirm_key(state, key),
     }
 }
@@ -143,11 +143,11 @@ fn handle_picker_key(state: &mut DeleteState, key: KeyEvent) -> Nav {
         }
         KeyCode::Enter => {
             if state.empty {
-                return Nav::AddCredentials;
+                return Nav::AddProfile;
             }
             if let Some(idx) = state.list.selected_original_index() {
                 let slug = state.slugs[idx].clone();
-                let all = get_all_credentials().unwrap_or_default();
+                let all = get_all_profiles().unwrap_or_default();
                 let name = all.get(&slug).map(|c| c.name.clone()).unwrap_or_default();
                 state.selected_slug = Some(slug);
                 state.selected_name = Some(name);
@@ -172,9 +172,9 @@ fn handle_confirm_key(state: &mut DeleteState, key: KeyEvent) -> Nav {
                 return Nav::Back;
             }
             if let Some(ref slug) = state.selected_slug.clone() {
-                match remove_credential(slug) {
+                match remove_profile(slug) {
                     Ok(_) => {
-                        state.status = format!("Credentials \"{}\" deleted.", state.selected_name.as_deref().unwrap_or(slug));
+                        state.status = format!("Profile \"{}\" deleted.", state.selected_name.as_deref().unwrap_or(slug));
                         state.is_error = false;
                         Nav::Back
                     }

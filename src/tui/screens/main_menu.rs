@@ -9,11 +9,11 @@ use super::widgets::{SelectList, render_banner, render_footer};
 
 const MENU_ITEMS: &[(&str, &str, &str)] = &[
     ("Launch Last", "", "last"),
-    ("Launch with provider", "run Claude Code with saved credentials", "use"),
+    ("Launch with provider", "run Claude Code with a saved profile", "use"),
     ("Launch default", "run with official Anthropic settings", "default"),
-    ("Add credentials", "save new credentials for a provider", "add"),
-    ("Edit credentials", "modify a saved set", "edit"),
-    ("Delete credentials", "remove a saved set", "delete"),
+    ("Add profile", "save a new profile for a provider", "add"),
+    ("Edit profile", "modify a saved profile", "edit"),
+    ("Delete profile", "remove a saved profile", "delete"),
     ("Settings", "configure claude-launcher", "settings"),
     ("Help", "about claude-launcher", "help"),
     ("Exit", "", "exit"),
@@ -25,18 +25,18 @@ pub struct MainMenuState {
 }
 
 impl MainMenuState {
-    pub fn new(last_launched_credential: Option<String>) -> Self {
+    pub fn new(last_launched_profile: Option<String>) -> Self {
         let mut actions: Vec<&'static str> = Vec::new();
         let items: Vec<(String, String)> = MENU_ITEMS
             .iter()
             .filter_map(|(label, desc, slug)| {
                 if *slug == "last" {
-                    last_launched_credential.as_ref().map(|cred_slug| {
+                    last_launched_profile.as_ref().map(|profile_slug| {
                         actions.push(*slug);
-                        let name = crate::config::get_all_credentials()
+                        let name = crate::config::get_all_profiles()
                             .ok()
-                            .and_then(|creds| creds.get(cred_slug).map(|c| c.name.clone()))
-                            .unwrap_or_else(|| cred_slug.clone());
+                            .and_then(|profiles| profiles.get(profile_slug).map(|c| c.name.clone()))
+                            .unwrap_or_else(|| profile_slug.clone());
                         (label.to_string(), name)
                     })
                 } else {
@@ -60,7 +60,7 @@ pub enum Nav {
     GoTo(Screen),
 }
 
-pub fn render(f: &mut Frame, state: &mut MainMenuState, workspace_label: &str, workspace_path: &str, _last_launched_credential: &Option<String>) {
+pub fn render(f: &mut Frame, state: &mut MainMenuState, workspace_label: &str, workspace_path: &str, _last_launched_profile: &Option<String>) {
     let area = f.area();
     let chunks = Layout::default()
         .direction(Direction::Vertical)

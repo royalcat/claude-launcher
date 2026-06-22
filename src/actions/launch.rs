@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::process::Command;
 
-use crate::config::{get_all_credentials, get_credential};
+use crate::config::{get_all_profiles, get_profile};
 use crate::error::AppError;
 
 pub fn check_claude_installed() -> bool {
@@ -54,15 +54,15 @@ pub fn launch_claude(env: &HashMap<String, String>, claude_args: &[String]) -> R
 
 /// Non-interactive launch: look up `slug`, optionally print or spawn.
 pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) -> Result<i32, AppError> {
-    let cred = get_credential(slug)?.ok_or_else(|| {
+    let profile = get_profile(slug)?.ok_or_else(|| {
         // Collect available slugs for the error message
-        let all = get_all_credentials().unwrap_or_default();
+        let all = get_all_profiles().unwrap_or_default();
         let available: Vec<String> = all.keys().cloned().collect();
         let hint = if available.is_empty() {
             String::new()
         } else {
             format!(
-                "\n  Available credentials:\n{}",
+                "\n  Available profiles:\n{}",
                 available
                     .iter()
                     .map(|s| format!("    - {} ({})", s, all[s].name))
@@ -70,11 +70,11 @@ pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) ->
                     .join("\n")
             )
         };
-        AppError::Other(format!("Credentials \"{slug}\" not found.{hint}"))
+        AppError::Other(format!("Profile \"{slug}\" not found.{hint}"))
     })?;
 
     if print_only {
-        println!("{}", build_command(&cred.env, claude_args));
+        println!("{}", build_command(&profile.env, claude_args));
         return Ok(0);
     }
 
@@ -84,5 +84,5 @@ pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) ->
         ));
     }
 
-    launch_claude(&cred.env, claude_args).map_err(|e| AppError::Other(e))
+    launch_claude(&profile.env, claude_args).map_err(|e| AppError::Other(e))
 }

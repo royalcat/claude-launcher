@@ -11,15 +11,15 @@ pub struct Cli {
     #[arg(long, value_name = "LABEL", global = true)]
     pub workspace: Option<String>,
 
-    /// Ad-hoc path to a credentials JSON file (mutually exclusive with --workspace)
+    /// Ad-hoc path to a profiles JSON file (mutually exclusive with --workspace)
     #[arg(long, value_name = "PATH", global = true)]
     pub config: Option<String>,
 
-    /// [Legacy] Directly launch with a specific credential slug
+    /// [Legacy] Directly launch with a specific profile slug
     #[arg(long, value_name = "SLUG", global = true)]
-    pub credentials: Option<String>,
+    pub profiles: Option<String>,
 
-    /// Print env vars and command instead of launching (use with --credentials or launch)
+    /// Print env vars and command instead of launching (use with --profiles or launch)
     #[arg(long, global = true)]
     pub print: bool,
 
@@ -33,12 +33,12 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// List all saved credentials
+    /// List all saved profiles
     List,
 
-    /// Launch Claude Code with credentials (interactive picker if no slug given)
+    /// Launch Claude Code with a profile (interactive picker if no slug given)
     Launch {
-        /// Credential slug to launch with
+        /// Profile slug to launch with
         slug: Option<String>,
 
         /// Print env vars and command instead of launching

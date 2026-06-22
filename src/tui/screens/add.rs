@@ -10,7 +10,7 @@ use ratatui_textarea::TextArea;
 
 use super::extra_body::{build_extra_body, deserialize_value, get_nested_path, parse_extra_body, serialize_value, set_nested_path};
 use super::widgets::{ChoicePicker, SelectList, centered_rect, render_footer, render_status};
-use crate::config::{Credential, get_all_credentials, save_credential, slugify_name};
+use crate::config::{Profile, get_all_profiles, save_profile, slugify_name};
 use crate::providers::{ExtraBodyValueType, FieldType, PROVIDERS, ProviderDef, get_provider};
 use crate::tui::theme::*;
 
@@ -34,9 +34,9 @@ pub struct AddState {
     field_cursor: usize,
     status: String,
     is_error: bool,
-    /// List for picking an existing credential to copy from
+    /// List for picking an existing profile to copy from
     copy_source_list: Option<SelectList>,
-    /// Maps list index to credential slug
+    /// Maps list index to profile slug
     copy_source_slugs: Option<Vec<String>>,
     /// When Some, a choice picker popup is open
     choice_picker: Option<ChoicePicker>,
@@ -87,10 +87,10 @@ impl AddState {
             return;
         };
 
-        let all = match get_all_credentials() {
-            Ok(creds) => creds,
+        let all = match get_all_profiles() {
+            Ok(profiles) => profiles,
             Err(_) => {
-                self.status = "Failed to load credentials".to_string();
+                self.status = "Failed to load profiles".to_string();
                 self.is_error = true;
                 return;
             }
@@ -110,7 +110,7 @@ impl AddState {
             .collect();
 
         if filtered.is_empty() {
-            self.status = "No existing credentials for this provider".to_string();
+            self.status = "No existing profiles for this provider".to_string();
             self.is_error = true;
             return;
         }
@@ -126,13 +126,13 @@ impl AddState {
         self.step = Step::PickCopySource;
     }
 
-    fn copy_fields_from_credential(&mut self, slug: &str) {
-        let all = match get_all_credentials() {
-            Ok(creds) => creds,
+    fn copy_fields_from_profile(&mut self, slug: &str) {
+        let all = match get_all_profiles() {
+            Ok(profiles) => profiles,
             Err(_) => return,
         };
 
-        let Some(credential) = all.get(slug) else {
+        let Some(profile) = all.get(slug) else {
             return;
         };
 
@@ -145,7 +145,7 @@ impl AddState {
         };
 
         // Parse extra body JSON once if it exists
-        let extra_body_json = credential
+        let extra_body_json = profile
             .env
             .get(crate::providers::ENV_EXTRA_BODY)
             .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok());
@@ -153,7 +153,7 @@ impl AddState {
         for (field_def, textarea) in provider.fields.iter().zip(self.fields.iter_mut()) {
             match &field_def.field_type {
                 FieldType::Url | FieldType::Secret | FieldType::String | FieldType::Choice { .. } => {
-                    if let Some(value) = credential.env.get(field_def.key) {
+                    if let Some(value) = profile.env.get(field_def.key) {
                         textarea.select_all();
                         textarea.insert_str(value);
                     }
@@ -197,8 +197,8 @@ impl AddState {
                     }
                 }
                 if let Some(slug) = slug_to_copy {
-                    self.copy_fields_from_credential(&slug);
-                    self.status = "Fields copied from existing credential".to_string();
+                    self.copy_fields_from_profile(&slug);
+                    self.status = "Fields copied from existing profile".to_string();
                     self.is_error = false;
                 }
                 self.copy_source_list = None;
@@ -272,7 +272,7 @@ fn render_form(f: &mut Frame, state: &mut AddState, area: Rect) {
         None => return,
     };
 
-    let title_text = format!("Add credentials — {}", provider.name);
+    let title_text = format!("Add profile — {}", provider.name);
     let total = state.total_fields();
 
     // Build constraints: title + name field + one block per provider field + spacer + status + footer
@@ -430,7 +430,7 @@ fn render_copy_source_picker(f: &mut Frame, state: &mut AddState, area: Rect) {
     f.render_widget(Clear, popup_area);
 
     let block = Block::new()
-        .title(" Copy from Existing Credential ")
+        .title(" Copy from Existing Profile ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(ORANGE));
 
@@ -705,7 +705,7 @@ fn try_save(state: &mut AddState, provider: &ProviderDef) -> Nav {
         return Nav::None;
     }
 
-    let all = get_all_credentials().unwrap_or_default();
+    let all = get_all_profiles().unwrap_or_default();
     let final_slug = if all.contains_key(&slug) {
         let mut i = 2;
         loop {
@@ -719,15 +719,15 @@ fn try_save(state: &mut AddState, provider: &ProviderDef) -> Nav {
         slug
     };
 
-    let cred = Credential {
+    let profile = Profile {
         name: name.clone(),
         provider: provider.id.to_string(),
         env,
     };
 
-    match save_credential(&final_slug, cred) {
+    match save_profile(&final_slug, profile) {
         Ok(_) => {
-            state.status = format!("Credentials \"{name}\" saved as \"{final_slug}\"!");
+            state.status = format!("Profile \"{name}\" saved as \"{final_slug}\"!");
             state.is_error = false;
             Nav::Back
         }

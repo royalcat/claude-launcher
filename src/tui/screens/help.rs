@@ -28,7 +28,7 @@ pub fn render(f: &mut Frame) {
 
     let (active_label, _) = get_active_workspace();
     let workspaces = list_workspaces();
-    let creds_path = get_config_path();
+    let profiles_path = get_config_path();
     let settings_file = settings_path().to_string_lossy().into_owned();
 
     let mut lines: Vec<Line> = vec![
@@ -40,7 +40,7 @@ pub fn render(f: &mut Frame) {
             Span::raw("  "),
             Span::styled("What is this?", Style::default().add_modifier(Modifier::BOLD)),
         ]),
-        Line::from(Span::raw("  A CLI tool to manage multiple sets of Claude Code credentials")),
+        Line::from(Span::raw("  A CLI tool to manage multiple sets of Claude Code profiles")),
         Line::from(Span::raw("  and launch Claude Code with any of them instantly.")),
         Line::raw(""),
         Line::from(vec![
@@ -50,14 +50,14 @@ pub fn render(f: &mut Frame) {
         Line::from(vec![
             Span::raw("   "),
             dim("1.  "),
-            Span::styled("Add credentials", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled("Add profile", Style::default().add_modifier(Modifier::BOLD)),
             dim("        → pick a provider, paste your API key"),
         ]),
         Line::from(vec![
             Span::raw("   "),
             dim("2.  "),
             Span::styled("Launch with provider", Style::default().add_modifier(Modifier::BOLD)),
-            dim("   → run Claude Code with those credentials"),
+            dim("   → run Claude Code with that profile"),
         ]),
         Line::raw(""),
         Line::from(vec![Span::raw("  "), Span::styled("Keys", Style::default().add_modifier(Modifier::BOLD))]),
@@ -87,19 +87,19 @@ pub fn render(f: &mut Frame) {
             Span::raw("   "),
             dim("$ "),
             Span::raw("claude-launcher list"),
-            dim("                   # list all credentials"),
+            dim("                   # list all profiles"),
         ]),
         Line::from(vec![
             Span::raw("   "),
             dim("$ "),
             Span::raw("claude-launcher launch"),
-            dim("                # pick credentials interactively"),
+            dim("                # pick a profile interactively"),
         ]),
         Line::from(vec![
             Span::raw("   "),
             dim("$ "),
             Span::raw("claude-launcher launch <slug>"),
-            dim("          # launch with these credentials"),
+            dim("          # launch with a specific profile"),
         ]),
         Line::from(vec![
             Span::raw("   "),
@@ -155,8 +155,8 @@ pub fn render(f: &mut Frame) {
     lines.push(Line::from(vec![Span::raw("   "), Span::raw(settings_file), dim("  (settings)")]));
     lines.push(Line::from(vec![
         Span::raw("   "),
-        Span::raw(creds_path),
-        dim("  (credentials — mode 0600)"),
+        Span::raw(profiles_path),
+        dim("  (profiles — mode 0600)"),
     ]));
     lines.push(Line::raw(""));
     lines.push(Line::from(vec![

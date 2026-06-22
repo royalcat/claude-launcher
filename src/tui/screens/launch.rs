@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use super::widgets::{SelectList, render_footer, render_status};
-use crate::config::{get_all_credentials, mask_secret};
+use crate::config::{get_all_profiles, mask_secret};
 use crate::tui::theme::*;
 
 pub struct LaunchState {
@@ -22,14 +22,14 @@ pub struct LaunchState {
 
 impl LaunchState {
     pub fn new() -> Self {
-        let all = get_all_credentials().unwrap_or_default();
+        let all = get_all_profiles().unwrap_or_default();
         let mut slugs: Vec<String> = all.keys().cloned().collect();
         slugs.sort();
 
         let empty = slugs.is_empty();
 
         let items: Vec<(String, String)> = if empty {
-            vec![("Add credentials".to_string(), "".to_string())]
+            vec![("Add profile".to_string(), "".to_string())]
         } else {
             slugs
                 .iter()
@@ -59,7 +59,7 @@ pub enum Nav {
     None,
     Back,
     Launch { slug: String, claude_args: Vec<String> },
-    AddCredentials,
+    AddProfile,
 }
 
 pub fn render(f: &mut Frame, state: &mut LaunchState) {
@@ -76,7 +76,7 @@ pub fn render(f: &mut Frame, state: &mut LaunchState) {
 
     let title = Paragraph::new(Line::from(vec![
         Span::raw("  "),
-        Span::styled("Select credentials to launch with:", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled("Select a profile to launch with:", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw("  "),
         dim("(/ to filter)"),
     ]));
@@ -127,7 +127,7 @@ pub fn handle_key(state: &mut LaunchState, key: KeyEvent) -> Nav {
         }
         KeyCode::Enter => {
             if state.empty {
-                return Nav::AddCredentials;
+                return Nav::AddProfile;
             }
             if let Some(idx) = state.list.selected_original_index() {
                 let slug = state.slugs[idx].clone();

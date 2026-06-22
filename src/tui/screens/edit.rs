@@ -1,6 +1,6 @@
 use super::extra_body::{build_extra_body, deserialize_value, get_nested_path, parse_extra_body, serialize_value, set_nested_path};
 use super::widgets::{ChoicePicker, SelectList, centered_rect, render_footer, render_status};
-use crate::config::{Credential, get_all_credentials, get_credential, mask_secret, rename_credential};
+use crate::config::{Profile, get_all_profiles, get_profile, mask_secret, rename_profile};
 use crate::providers::{ExtraBodyValueType, FieldType, ProviderDef, get_provider};
 use crate::tui::theme::*;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -14,7 +14,7 @@ use ratatui::{
 use ratatui_textarea::TextArea;
 
 enum Step {
-    PickCredential,
+    PickProfile,
     FillForm,
 }
 
@@ -33,17 +33,17 @@ pub struct EditState {
 
 impl EditState {
     pub fn new() -> Self {
-        let all = get_all_credentials().unwrap_or_default();
+        let all = get_all_profiles().unwrap_or_default();
         let mut slugs: Vec<String> = all.keys().cloned().collect();
         slugs.sort();
         let empty = slugs.is_empty();
         let items: Vec<(String, String)> = if empty {
-            vec![("Add credentials".to_string(), "".to_string())]
+            vec![("Add profile".to_string(), "".to_string())]
         } else {
             slugs.iter().map(|s| (all[s].name.clone(), all[s].provider.clone())).collect()
         };
         EditState {
-            step: Step::PickCredential,
+            step: Step::PickProfile,
             list: SelectList::new(items),
             slugs,
             current_slug: None,
@@ -57,16 +57,16 @@ impl EditState {
     }
 
     fn init_form(&mut self, slug: &str) {
-        let cred = match get_credential(slug) {
+        let profile = match get_profile(slug) {
             Ok(Some(c)) => c,
             _ => return,
         };
-        let provider = match get_provider(&cred.provider) {
+        let provider = match get_provider(&profile.provider) {
             Some(p) => p,
             None => return,
         };
         // Parse CLAUDE_CODE_EXTRA_BODY once; used for all ExtraBody fields below
-        let extra_body_json = cred
+        let extra_body_json = profile
             .env
             .get(crate::providers::ENV_EXTRA_BODY)
             .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok());
@@ -83,7 +83,7 @@ impl EditState {
                         .and_then(|v| deserialize_value(value_type, v))
                         .unwrap_or_default()
                 } else {
-                    let current = cred.env.get(f.key).cloned().unwrap_or_default();
+                    let current = profile.env.get(f.key).cloned().unwrap_or_default();
                     if !current.is_empty() {
                         current
                     } else if let Some(default) = f.default {
@@ -110,13 +110,13 @@ impl EditState {
 pub enum Nav {
     None,
     Back,
-    AddCredentials,
+    AddProfile,
 }
 
 pub fn render(f: &mut Frame, state: &mut EditState) {
     let area = f.area();
     match state.step {
-        Step::PickCredential => render_picker(f, state, area),
+        Step::PickProfile => render_picker(f, state, area),
         Step::FillForm => render_form(f, state, area),
     }
 }
@@ -129,7 +129,7 @@ fn render_picker(f: &mut Frame, state: &mut EditState, area: Rect) {
 
     let title = Paragraph::new(Line::from(vec![
         Span::raw("  "),
-        Span::styled("Which credentials to edit?", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled("Which profile to edit?", Style::default().add_modifier(Modifier::BOLD)),
     ]));
     f.render_widget(title, chunks[0]);
     state.list.render(f, chunks[1], false);
@@ -139,11 +139,11 @@ fn render_picker(f: &mut Frame, state: &mut EditState, area: Rect) {
 
 fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
     let slug = state.current_slug.as_deref().unwrap_or("");
-    let cred = match get_credential(slug) {
+    let profile = match get_profile(slug) {
         Ok(Some(c)) => c,
         _ => return,
     };
-    let provider = match get_provider(&cred.provider) {
+    let provider = match get_provider(&profile.provider) {
         Some(p) => p,
         None => return,
     };
@@ -161,7 +161,7 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
 
     let title = Paragraph::new(Line::from(vec![
         Span::raw("  "),
-        Span::styled(format!("Edit credentials — {}", cred.name), Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(format!("Edit profile — {}", profile.name), Style::default().add_modifier(Modifier::BOLD)),
     ]));
     f.render_widget(title, chunks[0]);
 
@@ -173,7 +173,7 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
             &field_def.field_type,
             FieldType::ExtraBody { value_type: ExtraBodyValueType::Bool, .. }
         );
-        let current_val = cred.env.get(field_def.key).cloned().unwrap_or_default();
+        let current_val = profile.env.get(field_def.key).cloned().unwrap_or_default();
         let hint = if is_bool {
             // Bool checkbox is self-explanatory — no hint needed
             String::new()
@@ -284,7 +284,7 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
 
 pub fn handle_key(state: &mut EditState, key: KeyEvent) -> Nav {
     match state.step {
-        Step::PickCredential => handle_picker_key(state, key),
+        Step::PickProfile => handle_picker_key(state, key),
         Step::FillForm => handle_form_key(state, key),
     }
 }
@@ -302,7 +302,7 @@ fn handle_picker_key(state: &mut EditState, key: KeyEvent) -> Nav {
         }
         KeyCode::Enter => {
             if state.empty {
-                return Nav::AddCredentials;
+                return Nav::AddProfile;
             }
             if let Some(idx) = state.list.selected_original_index() {
                 let slug = state.slugs[idx].clone();
@@ -317,7 +317,7 @@ fn handle_picker_key(state: &mut EditState, key: KeyEvent) -> Nav {
 
 fn handle_form_key(state: &mut EditState, key: KeyEvent) -> Nav {
     let slug = state.current_slug.as_deref().unwrap_or("").to_string();
-    let provider_id = match get_credential(&slug) {
+    let provider_id = match get_profile(&slug) {
         Ok(Some(c)) => c.provider,
         _ => return Nav::Back,
     };
@@ -461,7 +461,7 @@ fn handle_form_key(state: &mut EditState, key: KeyEvent) -> Nav {
 }
 
 fn try_save(state: &mut EditState, provider: &ProviderDef, old_slug: &str) -> Nav {
-    let old_cred = match get_credential(old_slug) {
+    let old_profile = match get_profile(old_slug) {
         Ok(Some(c)) => c,
         _ => return Nav::Back,
     };
@@ -485,7 +485,7 @@ fn try_save(state: &mut EditState, provider: &ProviderDef, old_slug: &str) -> Na
         // For secret and choice fields, if empty keep old value
         let final_value = if value.is_empty() {
             if field_def.field_type == FieldType::Secret || matches!(&field_def.field_type, FieldType::Choice { .. }) {
-                old_cred.env.get(field_def.key).cloned().unwrap_or_default()
+                old_profile.env.get(field_def.key).cloned().unwrap_or_default()
             } else {
                 String::new()
             }
@@ -510,15 +510,15 @@ fn try_save(state: &mut EditState, provider: &ProviderDef, old_slug: &str) -> Na
         env.insert(crate::providers::ENV_EXTRA_BODY.to_string(), body);
     }
 
-    let updated = Credential {
-        name: old_cred.name.clone(),
+    let updated = Profile {
+        name: old_profile.name.clone(),
         provider: provider.id.to_string(),
         env,
     };
 
-    match rename_credential(old_slug, old_slug, updated) {
+    match rename_profile(old_slug, old_slug, updated) {
         Ok(_) => {
-            state.status = format!("Credentials \"{}\" updated!", old_cred.name);
+            state.status = format!("Profile \"{}\" updated!", old_profile.name);
             state.is_error = false;
             Nav::Back
         }

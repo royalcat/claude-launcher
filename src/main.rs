@@ -54,8 +54,8 @@ fn main() {
     let cli = Cli::parse();
     apply_overrides(&cli);
 
-    // Non-interactive: --credentials <slug> (legacy)
-    if let Some(ref slug) = cli.credentials {
+    // Non-interactive: --profiles <slug> (legacy)
+    if let Some(ref slug) = cli.profiles {
         match actions::launch::launch_with_slug(slug, &cli.claude_args, cli.print) {
             Ok(code) => std::process::exit(code),
             Err(e) => report_fatal(&e),
@@ -64,7 +64,7 @@ fn main() {
 
     match cli.command {
         Some(Command::List) => {
-            if let Err(e) = actions::list::list_credentials() {
+            if let Err(e) = actions::list::list_profiles() {
                 report_fatal(&e);
             }
         }

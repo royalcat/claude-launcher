@@ -1,14 +1,14 @@
-use crate::config::{get_all_credentials, mask_secret};
+use crate::config::{get_all_profiles, mask_secret};
 use crate::error::AppError;
 use crate::providers::get_provider;
 
-pub fn list_credentials() -> Result<(), AppError> {
-    let all = get_all_credentials()?;
+pub fn list_profiles() -> Result<(), AppError> {
+    let all = get_all_profiles()?;
     let mut slugs: Vec<String> = all.keys().cloned().collect();
     slugs.sort();
 
     if slugs.is_empty() {
-        eprintln!("\n  No credentials configured yet.\n");
+        eprintln!("\n  No profiles configured yet.\n");
         return Ok(());
     }
 

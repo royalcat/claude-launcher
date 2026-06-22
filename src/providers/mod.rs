@@ -25,7 +25,7 @@ pub enum FieldType {
     Choice { options: &'static [&'static str] },
 }
 
-/// A single field in a provider's credential form.
+/// A single field in a provider's profile form.
 #[derive(Debug, Clone)]
 pub struct ProviderField {
     /// The environment variable key (e.g. `ANTHROPIC_AUTH_TOKEN`)
@@ -37,8 +37,8 @@ pub struct ProviderField {
     pub default: Option<&'static str>,
 }
 
-/// A provider definition: describes what credentials Claude Code needs to
-/// talk to a specific API endpoint.
+/// A provider definition: describes what env vars and config Claude Code needs
+/// to talk to a specific API endpoint.
 #[derive(Debug, Clone)]
 pub struct ProviderDef {
     pub id: &'static str,

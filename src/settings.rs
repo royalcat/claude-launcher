@@ -42,14 +42,14 @@ pub fn default_config_path() -> PathBuf {
 pub struct RawSettings {
     pub active_workspace: Option<String>,
     pub workspaces: Option<HashMap<String, String>>,
-    pub last_launched_credential: Option<String>,
+    pub last_launched_profile: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct Settings {
     pub active_workspace: String,
     pub workspaces: HashMap<String, String>,
-    pub last_launched_credential: Option<String>,
+    pub last_launched_profile: Option<String>,
 }
 
 // ---- Slug helpers ---------------------------------------------------------
@@ -82,7 +82,7 @@ fn write_raw(settings: &Settings) -> Result<(), ConfigAccessError> {
     let raw = RawSettings {
         active_workspace: Some(settings.active_workspace.clone()),
         workspaces: Some(settings.workspaces.clone()),
-        last_launched_credential: settings.last_launched_credential.clone(),
+        last_launched_profile: settings.last_launched_profile.clone(),
     };
     let data = serde_json::to_string_pretty(&raw).expect("serialization never fails");
     fs::write(&path, &data).map_err(|e| ConfigAccessError {
@@ -108,7 +108,7 @@ fn normalize(raw: RawSettings) -> (Settings, bool) {
 
     let mut workspaces: HashMap<String, String> = raw.workspaces.clone().unwrap_or_default();
     let mut active_workspace: Option<String> = raw.active_workspace.clone();
-    let last_launched_credential: Option<String> = raw.last_launched_credential.clone();
+    let last_launched_profile: Option<String> = raw.last_launched_profile.clone();
 
     // Fresh install: seed default workspace
     if workspaces.is_empty() {
@@ -138,7 +138,7 @@ fn normalize(raw: RawSettings) -> (Settings, bool) {
         Settings {
             active_workspace: active,
             workspaces,
-            last_launched_credential,
+            last_launched_profile,
         },
         dirty,
     )
@@ -169,13 +169,13 @@ pub fn get_active_workspace() -> (String, String) {
     (s.active_workspace, path)
 }
 
-pub fn get_last_launched_credential() -> Option<String> {
-    load_settings().last_launched_credential
+pub fn get_last_launched_profile() -> Option<String> {
+    load_settings().last_launched_profile
 }
 
-pub fn update_last_launched_credential(slug: &str) {
+pub fn update_last_launched_profile(slug: &str) {
     let mut s = load_settings();
-    s.last_launched_credential = Some(slug.to_string());
+    s.last_launched_profile = Some(slug.to_string());
     let _ = save_settings(&s);
 }
 

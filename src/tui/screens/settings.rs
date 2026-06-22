@@ -10,8 +10,9 @@ use ratatui_textarea::TextArea;
 
 use super::widgets::{SelectList, render_footer, render_status};
 use crate::settings::{
-    add_workspace, default_config_path, get_active_workspace, list_workspaces, remove_workspace, rename_workspace, set_active_workspace, slugify_label,
-    update_workspace_path,
+    add_workspace, get_active_workspace, list_workspaces, remove_workspace,
+    rename_workspace, set_active_workspace, slugify_label, update_workspace_path,
+    workspace_config_path,
 };
 use crate::tui::theme::*;
 
@@ -272,8 +273,6 @@ fn handle_top_menu(state: &mut SettingsState, key: KeyEvent) -> Nav {
                     "add" => {
                         state.text_input = TextArea::default();
                         state.text_input2 = TextArea::default();
-                        // Insert default path
-                        state.text_input2.insert_str(&default_config_path().to_string_lossy());
                         state.step = Step::AddWorkspace { sub: AddWorkspaceSub::Label };
                     }
                     "edit" => {
@@ -349,6 +348,9 @@ fn handle_add_workspace(state: &mut SettingsState, key: KeyEvent, sub: AddWorksp
                         state.is_error = true;
                         return Nav::None;
                     }
+                    // Pre-fill path with workspaces/{slug}.json
+                    state.text_input2 = TextArea::default();
+                    state.text_input2.insert_str(&workspace_config_path(&slug).to_string_lossy());
                     // Move to path step
                     state.status.clear();
                     state.step = Step::AddWorkspace { sub: AddWorkspaceSub::Path };

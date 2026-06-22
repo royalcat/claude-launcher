@@ -65,7 +65,7 @@ src/
 
 ## Key data shapes
 
-### Profiles file (`$XDG_CONFIG_HOME/claude-launcher/providers.json`, mode 0600)
+### Profiles file (default: `$XDG_CONFIG_HOME/claude-launcher/workspaces/default.json`, mode 0600)
 ```json
 {
   "profiles": {
@@ -87,18 +87,13 @@ Slugs are produced by `slugify_name(name)` in `config.rs`: lowercase, non-alphan
 {
   "activeWorkspace": "default",
   "workspaces": {
-    "default": "$XDG_CONFIG_HOME/claude-launcher/providers.json",
-    "work": "$XDG_CONFIG_HOME/claude-launcher/work.json"
+    "default": "$XDG_CONFIG_HOME/claude-launcher/workspaces/default.json",
+    "work": "$XDG_CONFIG_HOME/claude-launcher/workspaces/work.json"
   },
   "lastLaunchedProfile": "openrouter-anthropic"
 }
 ```
 `serde(rename_all = "camelCase")` is applied to `RawSettings`. `~` in paths is expanded by `expand_path()` in `settings.rs`.
-
-### Legacy migration
-`~/.claude-providers.json` (old schema) is migrated to the new format on first run. Also handles old `configPath` field in the settings file.
-
----
 
 ## Providers
 

@@ -25,13 +25,18 @@ pub fn settings_path() -> PathBuf {
 }
 
 pub fn default_config_path() -> PathBuf {
+    workspace_config_path("default")
+}
+
+pub fn workspace_config_path(name: &str) -> PathBuf {
     xdg_dirs()
-        .get_config_file("providers.json")
+        .get_config_file(format!("workspaces/{name}.json"))
         .unwrap_or_else(|| {
             dirs::config_dir()
                 .unwrap_or_else(|| PathBuf::from("."))
                 .join("claude-launcher")
-                .join("providers.json")
+                .join("workspaces")
+                .join(format!("{name}.json"))
         })
 }
 

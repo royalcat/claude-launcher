@@ -39,16 +39,12 @@ Anthropic's hosted Claude Code requires a paid plan or API credits. Many third-p
 | **OpenRouter** | Free models (`:free` suffix) |
 | **DeepSeek / Qwen / Moonshot** | Generous free credits on signup |
 
-> [!TIP]
-> Pair a local Ollama setup with Claude Launcher to get an offline Claude Code workflow with no recurring cost.
-
 ## Features
 
 - Instant provider switching from a menu or by slug
-- Multiple profiles per provider (work / personal / project)
+- Multiple profiles per provider
 - Zero changes to `~/.claude/settings.json`
 - Works with cloud APIs and local runtimes (Ollama, LM Studio, vLLM)
-- Profiles file stored at `0600` permissions
 - Args pass-through to `claude` for model overrides and flags
 - Scriptable for CI pipelines via `--print`
 
@@ -119,7 +115,7 @@ ln -sf "$(pwd)/target/release/claude-launcher" ~/.local/bin/claude-launcher
 Two files:
 
 - `$XDG_CONFIG_HOME/claude-launcher/settings.json` — settings (active workspace + registered workspace paths). Fixed location.
-- `<profiles path>` — profiles JSON, mode `0600`, plaintext. Default: `$XDG_CONFIG_HOME/claude-launcher/providers.json`. Path is driven by the active workspace.
+- `<profiles path>` — profiles JSON, mode `0600`, plaintext. Default: `$XDG_CONFIG_HOME/claude-launcher/workspaces/default.json`. Path is driven by the active workspace.
 
 > [!WARNING]
 > The profiles file holds API keys in plaintext. Don't commit it, don't sync it to public cloud storage, and review backups before sharing.
@@ -130,12 +126,10 @@ A workspace is a label paired with a profiles file path. Each workspace holds it
 
 **Common setups:**
 
-| Workspace | Profiles file | Why |
+| Workspace | workspace file | Why |
 |-----------|-----------------|-----|
-| `default` | `$XDG_CONFIG_HOME/claude-launcher/providers.json` | Personal keys, day-to-day use |
-| `office` | `$XDG_CONFIG_HOME/claude-launcher/work.json` | Work API keys, separate billing |
-| `cheap-models` | `$XDG_CONFIG_HOME/claude-launcher/cheap.json` | Free/low-cost providers only |
-| `ci` | `/etc/claude-launcher-ci.json` | Read-only path injected in CI |
+| `default` | `$XDG_CONFIG_HOME/claude-launcher/workspaces/default.json` | Personal keys, day-to-day use |
+| `work` | `$XDG_CONFIG_HOME/claude-launcher/workspaces/work.json` | Work API keys, separate billing |
 
 **Manage workspaces interactively:**
 
@@ -159,17 +153,17 @@ claude-launcher --config /tmp/test.json list            # ad-hoc path, no worksp
 
 - `$XDG_CONFIG_HOME/claude-launcher/settings.json` stores `{ activeWorkspace, workspaces: { <label>: <path> } }`. Fixed location.
 - Active workspace's path drives which profiles file is read and written.
-- On first run, a `default` workspace pointing at `$XDG_CONFIG_HOME/claude-launcher/providers.json` is created automatically.
+- On first run, a `default` workspace pointing at `$XDG_CONFIG_HOME/claude-launcher/workspaces/default.json` is created automatically.
 - Deleting the active workspace is blocked — switch first, then delete.
 - Workspace labels are slugified (lowercase, non-alphanumerics → `-`).
 
 **Tip:** use `--workspace` in shell aliases to switch contexts without touching the active workspace:
 
 ```bash
-alias cc-work="claude-launcher --workspace office launch"
-alias cc-cheap="claude-launcher --workspace cheap-models launch"
+alias claude-work="claude-launcher --workspace office launch"
+alias claude-cheap="claude-launcher --workspace cheap-models launch"
 ```
 
 ## Roadmap
 
-- At-rest encryption for profiles files
+- Encryption for profiles keys

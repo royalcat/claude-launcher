@@ -10,11 +10,17 @@ use crate::settings::get_config_path;
 // Disk shape:
 // { "profiles": { "<slug>": { "name": "...", "provider": "<id>", "env": {...} } } }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Profile {
     pub name: String,
     pub provider: String,
     pub env: HashMap<String, String>,
+    #[serde(default = "default_true")]
+    pub statusline_enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

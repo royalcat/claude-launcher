@@ -40,6 +40,10 @@ pub struct AddState {
     copy_source_slugs: Option<Vec<String>>,
     /// When Some, a choice picker popup is open
     choice_picker: Option<ChoicePicker>,
+    /// Whether the statusline checkbox is checked (default true)
+    statusline_enabled: bool,
+    /// Whether the selected provider supports statusline (hides checkbox if false)
+    statusline_supported: bool,
 }
 
 impl AddState {
@@ -57,11 +61,18 @@ impl AddState {
             copy_source_list: None,
             copy_source_slugs: None,
             choice_picker: None,
+            statusline_enabled: true,
+            statusline_supported: false,
         }
     }
 
     fn total_fields(&self) -> usize {
-        1 + self.fields.len()
+        let base = 1 + self.fields.len();
+        if self.statusline_supported {
+            base + 1
+        } else {
+            base
+        }
     }
 
     fn init_form(&mut self, provider: &ProviderDef) {
@@ -78,6 +89,8 @@ impl AddState {
             })
             .collect();
         self.field_cursor = 0;
+        self.statusline_supported = provider.supports_statusline;
+        self.statusline_enabled = true;
     }
 
     fn enter_copy_source_picker(&mut self) {
@@ -170,6 +183,7 @@ impl AddState {
                 }
             }
         }
+        self.statusline_enabled = profile.statusline_enabled;
         // Intentionally NOT modifying name_ta — user must enter a new name
     }
 
@@ -273,11 +287,14 @@ fn render_form(f: &mut Frame, state: &mut AddState, area: Rect) {
     };
 
     let title_text = format!("Add profile — {}", provider.name);
-    let total = state.total_fields();
+    let _total = state.total_fields();
 
-    // Build constraints: title + name field + one block per provider field + spacer + status + footer
+    // Build constraints: title + name field + one block per provider field + statusline toggle + spacer + status + footer
     let mut constraints = vec![Constraint::Length(2), Constraint::Length(3)];
     for _ in &state.fields {
+        constraints.push(Constraint::Length(3));
+    }
+    if state.statusline_supported {
         constraints.push(Constraint::Length(3));
     }
     constraints.push(Constraint::Min(1));
@@ -401,8 +418,37 @@ fn render_form(f: &mut Frame, state: &mut AddState, area: Rect) {
         }
     }
 
-    render_status(f, chunks[1 + total + 1], &state.status, state.is_error);
-    render_footer(f, chunks[1 + total + 2], &[("Tab", "next field"), ("Enter", "save"), ("Esc", "cancel"), ("Ctrl+R", "copy from existing")]);
+    // Render statusline checkbox if provider supports it
+    if state.statusline_supported {
+        let statusline_idx = 1 + state.fields.len();
+        let is_active = state.field_cursor == statusline_idx;
+        let border_style = if is_active {
+            Style::default().fg(ORANGE)
+        } else {
+            Style::default().fg(DIM_COLOR)
+        };
+        let checkbox_str = if state.statusline_enabled { "[x] Enabled" } else { "[ ] Enabled" };
+        let label = "  Status Line";
+        let block = Block::default()
+            .title(Span::styled(label, border_style))
+            .borders(Borders::ALL)
+            .border_style(border_style);
+        let inner = block.inner(chunks[2 + state.fields.len()]);
+        f.render_widget(block, chunks[2 + state.fields.len()]);
+        let text_style = if is_active {
+            Style::default().fg(ORANGE).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(DIM_COLOR)
+        };
+        f.render_widget(
+            Paragraph::new(Line::from(vec![Span::raw("  "), Span::styled(checkbox_str, text_style)])),
+            inner,
+        );
+    }
+
+    let footer_chunk = if state.statusline_supported { 2 + state.fields.len() + 2 } else { 2 + state.fields.len() + 1 };
+    render_status(f, chunks[footer_chunk], &state.status, state.is_error);
+    render_footer(f, chunks[footer_chunk + 1], &[("Tab", "next field"), ("Enter", "save"), ("Esc", "cancel"), ("Ctrl+R", "copy from existing")]);
 
     // Render choice picker overlay if open
     if let Some(picker) = &state.choice_picker {
@@ -597,6 +643,11 @@ fn handle_form_key(state: &mut AddState, key: KeyEvent) -> Nav {
             return Nav::None;
         }
         KeyCode::Char(' ') => {
+            // Toggle statusline checkbox if cursor is on it
+            if state.statusline_supported && state.field_cursor == 1 + state.fields.len() {
+                state.statusline_enabled = !state.statusline_enabled;
+                return Nav::None;
+            }
             let provider_id = state.provider_id.as_deref().unwrap_or("");
             if let Some(provider) = get_provider(provider_id) {
                 if state.field_cursor > 0 {
@@ -723,6 +774,7 @@ fn try_save(state: &mut AddState, provider: &ProviderDef) -> Nav {
         name: name.clone(),
         provider: provider.id.to_string(),
         env,
+        statusline_enabled: state.statusline_enabled,
     };
 
     match save_profile(&final_slug, profile) {

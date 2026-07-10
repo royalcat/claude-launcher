@@ -4,6 +4,7 @@ mod config;
 mod error;
 mod providers;
 mod settings;
+mod statusline;
 mod tui;
 
 use clap::Parser;
@@ -66,6 +67,13 @@ fn main() {
         Some(Command::List) => {
             if let Err(e) = actions::list::list_profiles() {
                 report_fatal(&e);
+            }
+        }
+
+        Some(Command::Statusline { profile }) => {
+            match actions::statusline::print_statusline(&profile) {
+                Ok(_) => {}
+                Err(e) => report_fatal(&e),
             }
         }
 

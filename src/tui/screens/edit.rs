@@ -29,6 +29,10 @@ pub struct EditState {
     is_error: bool,
     empty: bool,
     choice_picker: Option<ChoicePicker>,
+    /// Whether the statusline checkbox is checked
+    statusline_enabled: bool,
+    /// Whether the selected provider supports statusline (hides checkbox if false)
+    statusline_supported: bool,
 }
 
 impl EditState {
@@ -53,6 +57,8 @@ impl EditState {
             is_error: false,
             empty,
             choice_picker: None,
+            statusline_enabled: false,
+            statusline_supported: false,
         }
     }
 
@@ -65,6 +71,9 @@ impl EditState {
             Some(p) => p,
             None => return,
         };
+        self.statusline_supported = provider.supports_statusline;
+        self.statusline_enabled = profile.statusline_enabled;
+
         // Parse CLAUDE_CODE_EXTRA_BODY once; used for all ExtraBody fields below
         let extra_body_json = profile
             .env
@@ -151,6 +160,9 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
     let field_count = state.fields.len();
     let mut constraints = vec![Constraint::Length(2)];
     for _ in &state.fields {
+        constraints.push(Constraint::Length(3));
+    }
+    if state.statusline_supported {
         constraints.push(Constraint::Length(3));
     }
     constraints.push(Constraint::Min(1));
@@ -261,10 +273,39 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
         }
     }
 
-    render_status(f, chunks[1 + field_count + 1], &state.status, state.is_error);
+    // Render statusline checkbox if provider supports it
+    if state.statusline_supported {
+        let statusline_idx = state.fields.len();
+        let is_active = state.field_cursor == statusline_idx;
+        let border_style = if is_active {
+            Style::default().fg(ORANGE)
+        } else {
+            Style::default().fg(DIM_COLOR)
+        };
+        let checkbox_str = if state.statusline_enabled { "[x] Enabled" } else { "[ ] Enabled" };
+        let label = "  Status Line";
+        let block = Block::default()
+            .title(Span::styled(label, border_style))
+            .borders(Borders::ALL)
+            .border_style(border_style);
+        let inner = block.inner(chunks[1 + state.fields.len()]);
+        f.render_widget(block, chunks[1 + state.fields.len()]);
+        let text_style = if is_active {
+            Style::default().fg(ORANGE).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(DIM_COLOR)
+        };
+        f.render_widget(
+            Paragraph::new(Line::from(vec![Span::raw("  "), Span::styled(checkbox_str, text_style)])),
+            inner,
+        );
+    }
+
+    let footer_chunk = if state.statusline_supported { 1 + field_count + 2 } else { 1 + field_count + 1 };
+    render_status(f, chunks[footer_chunk], &state.status, state.is_error);
     render_footer(
         f,
-        chunks[1 + field_count + 2],
+        chunks[footer_chunk + 1],
         &[("Tab", "next field"), ("Enter", "save"), ("Esc", "cancel")],
     );
 
@@ -382,19 +423,34 @@ fn handle_form_key(state: &mut EditState, key: KeyEvent) -> Nav {
     match key.code {
         KeyCode::Esc => Nav::Back,
         KeyCode::Tab => {
-            state.field_cursor = (state.field_cursor + 1) % provider.fields.len();
+            let total = if state.statusline_supported {
+                provider.fields.len() + 1
+            } else {
+                provider.fields.len()
+            };
+            state.field_cursor = (state.field_cursor + 1) % total;
             Nav::None
         }
         KeyCode::BackTab => {
+            let total = if state.statusline_supported {
+                provider.fields.len() + 1
+            } else {
+                provider.fields.len()
+            };
             if state.field_cursor == 0 {
-                state.field_cursor = provider.fields.len() - 1;
+                state.field_cursor = total - 1;
             } else {
                 state.field_cursor -= 1;
             }
             Nav::None
         }
         KeyCode::Enter => {
-            if state.field_cursor + 1 < provider.fields.len() {
+            let total = if state.statusline_supported {
+                provider.fields.len() + 1
+            } else {
+                provider.fields.len()
+            };
+            if state.field_cursor + 1 < total {
                 state.field_cursor += 1;
                 return Nav::None;
             }
@@ -407,6 +463,11 @@ fn handle_form_key(state: &mut EditState, key: KeyEvent) -> Nav {
             Nav::None
         }
         KeyCode::Char(' ') => {
+            // Toggle statusline checkbox if cursor is on it
+            if state.statusline_supported && state.field_cursor == state.fields.len() {
+                state.statusline_enabled = !state.statusline_enabled;
+                return Nav::None;
+            }
             if let Some(field_def) = provider.fields.get(state.field_cursor) {
                 // If active field is a Choice, open the picker
                 if let FieldType::Choice { options } = &field_def.field_type {
@@ -514,6 +575,7 @@ fn try_save(state: &mut EditState, provider: &ProviderDef, old_slug: &str) -> Na
         name: old_profile.name.clone(),
         provider: provider.id.to_string(),
         env,
+        statusline_enabled: state.statusline_enabled,
     };
 
     match rename_profile(old_slug, old_slug, updated) {

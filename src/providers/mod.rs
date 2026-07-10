@@ -44,6 +44,7 @@ pub struct ProviderDef {
     pub id: &'static str,
     pub name: &'static str,
     pub fields: &'static [ProviderField],
+    pub supports_statusline: bool,
 }
 
 // ---- Provider definitions ------------------------------------------------
@@ -370,86 +371,103 @@ pub static PROVIDERS: &[ProviderDef] = &[
         id: "anthropic-compatible",
         name: "Any Anthropic or OpenAI Compatible",
         fields: ANTHROPIC_COMPATIBLE_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "zai",
         name: "z.ai (GLM)",
         fields: ZAI_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "openrouter",
         name: "OpenRouter",
         fields: OPENROUTER_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "deepseek",
         name: "DeepSeek",
         fields: DEEPSEEK_FIELDS,
+        supports_statusline: true,
     },
     ProviderDef {
         id: "minimax",
         name: "MiniMax",
         fields: MINIMAX_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "glm",
         name: "GLM (ZhipuAI)",
         fields: GLM_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "moonshot",
         name: "Moonshot",
         fields: MOONSHOT_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "qwen",
         name: "Qwen (Alibaba)",
         fields: QWEN_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "fireworks",
         name: "Fireworks AI",
         fields: FIREWORKS_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "volcengine",
         name: "Volcengine",
         fields: VOLCENGINE_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "nvidia-nim",
         name: "NVIDIA NIM",
         fields: NVIDIA_NIM_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "ollama",
         name: "Ollama (local)",
         fields: OLLAMA_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "lmstudio",
         name: "LM Studio",
         fields: LMSTUDIO_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "vllm",
         name: "vLLM",
         fields: VLLM_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "litellm",
         name: "LiteLLM",
         fields: LITELLM_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "cloudflare",
         name: "Cloudflare AI Gateway",
         fields: CLOUDFLARE_FIELDS,
+        supports_statusline: false,
     },
     ProviderDef {
         id: "vercel",
         name: "Vercel AI Gateway",
         fields: VERCEL_FIELDS,
+        supports_statusline: false,
     },
 ];
 

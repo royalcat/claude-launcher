@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::process::Command;
 
-use crate::config::{get_all_profiles, get_profile};
+use crate::config::{Profile, get_all_profiles, get_profile};
 use crate::error::AppError;
+use crate::providers::get_provider;
 
 pub fn check_claude_installed() -> bool {
     #[cfg(windows)]
@@ -52,6 +53,38 @@ pub fn launch_claude(env: &HashMap<String, String>, claude_args: &[String]) -> R
     }
 }
 
+/// Prepend `--settings` with a custom statusLine command to `claude_args`
+/// when the profile has statusline enabled and the provider supports it.
+fn build_statusline_args(slug: &str, profile: &Profile, claude_args: &[String]) -> Vec<String> {
+    if !profile.statusline_enabled {
+        return claude_args.to_vec();
+    }
+    let provider_supports = get_provider(&profile.provider)
+        .map(|p| p.supports_statusline)
+        .unwrap_or(false);
+    if !provider_supports {
+        return claude_args.to_vec();
+    }
+
+    // Resolve absolute path to this binary for robustness, so the statusline
+    // command works regardless of PATH.
+    let exe = std::env::current_exe()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| "claude-launcher".to_string());
+
+    let settings_json = serde_json::json!({
+        "statusLine": {
+            "type": "command",
+            "command": format!("{exe} statusline --profile {slug}")
+        }
+    })
+    .to_string();
+
+    let mut args = vec!["--settings".to_string(), settings_json];
+    args.extend_from_slice(claude_args);
+    args
+}
+
 /// Non-interactive launch: look up `slug`, optionally print or spawn.
 pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) -> Result<i32, AppError> {
     let profile = get_profile(slug)?.ok_or_else(|| {
@@ -73,8 +106,11 @@ pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) ->
         AppError::Other(format!("Profile \"{slug}\" not found.{hint}"))
     })?;
 
+    // Augment args with --settings if statusline is enabled
+    let augmented_args = build_statusline_args(slug, &profile, claude_args);
+
     if print_only {
-        println!("{}", build_command(&profile.env, claude_args));
+        println!("{}", build_command(&profile.env, &augmented_args));
         return Ok(0);
     }
 
@@ -84,5 +120,5 @@ pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) ->
         ));
     }
 
-    launch_claude(&profile.env, claude_args).map_err(|e| AppError::Other(e))
+    launch_claude(&profile.env, &augmented_args).map_err(|e| AppError::Other(e))
 }

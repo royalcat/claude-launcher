@@ -45,4 +45,11 @@ pub enum Command {
         #[arg(long)]
         print: bool,
     },
+
+    /// Output status line text for a profile (for use with Claude Code custom statusLine)
+    Statusline {
+        /// Profile slug to generate status line for
+        #[arg(long, value_name = "SLUG")]
+        profile: String,
+    },
 }

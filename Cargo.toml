@@ -17,3 +17,5 @@ xdg = { version = "3", features = ["serde"] }
 ureq = { version = "3", features = ["json", "platform-verifier", "gzip", "brotli"] }
 jiff = { version = "0.2", features = ["serde"] }
 heed = "0.22"
+itertools = "0.15.0"
+iso_currency = "0.5.3"

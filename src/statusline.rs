@@ -1,14 +1,13 @@
 use std::path::PathBuf;
 
-use heed::types::{SerdeBincode, Str};
-use heed::{Database, EnvOpenOptions};
-use jiff::Timestamp;
-use jiff::tz::{Offset, TimeZone};
-use serde::{Deserialize, Serialize};
+use heed::EnvOpenOptions;
+use serde::Deserialize;
 
 use crate::config::get_profile;
 use crate::error::AppError;
-use crate::providers::get_provider;
+use crate::providers::{ProviderDef, get_provider};
+
+mod deepseek;
 
 // ---- Stdin JSON from Claude Code -------------------------------------------
 
@@ -216,37 +215,7 @@ pub struct WorktreeInfo {
     pub original_branch: Option<String>,
 }
 
-// ---- DeepSeek balance API types -------------------------------------------
-
-#[derive(Debug, Deserialize)]
-struct BalanceResponse {
-    #[allow(dead_code)]
-    is_available: bool,
-    balance_infos: Vec<BalanceInfo>,
-}
-
-#[derive(Debug, Deserialize)]
-struct BalanceInfo {
-    #[allow(dead_code)]
-    currency: String,
-    total_balance: String,
-    #[allow(dead_code)]
-    #[serde(default)]
-    granted_balance: String,
-    #[allow(dead_code)]
-    #[serde(default)]
-    topped_up_balance: String,
-}
-
 // ---- LMDB cache ------------------------------------------------------------
-
-#[derive(Debug, Serialize, Deserialize)]
-struct CacheEntry {
-    balance: String,
-    timestamp: i64,
-}
-
-const CACHE_TTL_SECS: i64 = 60;
 
 fn cache_dir() -> PathBuf {
     dirs::cache_dir()
@@ -258,126 +227,12 @@ fn cache_dir() -> PathBuf {
 fn open_cache_env() -> Result<heed::Env, AppError> {
     let dir = cache_dir();
     std::fs::create_dir_all(&dir).map_err(|e| AppError::Other(format!("Failed to create cache dir {}: {e}", dir.display())))?;
-    // SAFETY: we use a dedicated directory with max_dbs(1), no unsafe flags.
-    // The environment is opened for a single process — LMDB handles concurrent
-    // readers across invocations through its file locking.
     unsafe {
         EnvOpenOptions::new()
-            .max_dbs(1)
+            .max_dbs(128)
             .open(&dir)
             .map_err(|e| AppError::Other(format!("Failed to open LMDB env: {e}")))
     }
-}
-
-fn cached_balance(session_id: &str) -> Option<String> {
-    let env = open_cache_env().ok()?;
-    let rtxn = env.read_txn().ok()?;
-
-    // Try to open existing database, or return None if it doesn't exist yet
-    let db: Database<Str, SerdeBincode<CacheEntry>> = match env.open_database(&rtxn, None).ok()? {
-        Some(db) => db,
-        None => return None,
-    };
-
-    let entry = db.get(&rtxn, session_id).ok()??;
-
-    let now = Timestamp::now().as_second();
-    if now - entry.timestamp <= CACHE_TTL_SECS {
-        Some(entry.balance)
-    } else {
-        None
-    }
-}
-
-fn store_balance(session_id: &str, balance: &str) {
-    let env = match open_cache_env() {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    let mut wtxn = match env.write_txn() {
-        Ok(t) => t,
-        Err(_) => return,
-    };
-
-    // Open existing DB or create it
-    let db: Database<Str, SerdeBincode<CacheEntry>> = match env.open_database(&wtxn, None).ok().flatten() {
-        Some(db) => db,
-        None => match env.create_database(&mut wtxn, None) {
-            Ok(db) => db,
-            Err(_) => return,
-        },
-    };
-
-    let entry = CacheEntry {
-        balance: balance.to_string(),
-        timestamp: Timestamp::now().as_second(),
-    };
-    let _ = db.put(&mut wtxn, session_id, &entry);
-    let _ = wtxn.commit();
-}
-
-// ---- Balance fetching -----------------------------------------------------
-
-/// Fetch the DeepSeek account balance via their API.
-/// Returns the total balance as a formatted string (e.g. "110.00") or an error message.
-pub fn fetch_balance(api_key: &str) -> Result<String, String> {
-    let resp = ureq::get("https://api.deepseek.com/user/balance")
-        .header("Authorization", &format!("Bearer {}", api_key))
-        .header("Accept", "application/json")
-        .call()
-        .map_err(|e| format!("HTTP request failed: {}", e))?
-        .body_mut()
-        .read_json::<BalanceResponse>()
-        .map_err(|e| format!("Failed to parse balance response: {}", e))?;
-
-    if !resp.is_available {
-        return Ok("Balance unavailable".to_string());
-    }
-
-    // Prefer CNY balance, fall back to first available
-    // let info = resp
-    //     .balance_infos
-    //     .iter()
-    //     .find(|b| b.currency == "CNY")
-    //     .or_else(|| resp.balance_infos.first())
-    //     .ok_or_else(|| "No balance information in response".to_string())?;
-
-    // Ok(info.total_balance.clone())
-
-    Ok(resp
-        .balance_infos
-        .iter()
-        .map(|b| format!("{} {}", b.total_balance, b.currency))
-        .collect::<Vec<_>>()
-        .join(" "))
-}
-
-// ---- Peak hours -----------------------------------------------------------
-
-/// Returns true if the current Beijing time (UTC+8) falls within peak hours.
-///
-/// Peak hours are currently hardcoded as 09:00–12:00 and 14:00–18:00.
-///
-/// TODO: Fetch peak hours from DeepSeek API when such an endpoint becomes available.
-pub fn is_peak_hours() -> bool {
-    // Beijing time via IANA timezone (China Standard Time, no DST)
-    let hour = Timestamp::now()
-        .to_zoned(TimeZone::get("Asia/Shanghai").unwrap_or(TimeZone::fixed(Offset::from_hours(8).unwrap())))
-        .datetime()
-        .hour();
-
-    (hour >= 9 && hour < 12) || (hour >= 14 && hour < 18)
-}
-
-// ---- Formatting -----------------------------------------------------------
-
-/// Format the status line text for display in Claude Code's status bar.
-pub fn format_statusline(provider_name: &str, balance: Option<&str>, peak: bool) -> String {
-    format!(
-        "{provider_name} | Balance: {} | {}",
-        balance.unwrap_or("--"),
-        if peak { "Peak" } else { "Off-Peak" }
-    )
 }
 
 // ---- Stdin parsing --------------------------------------------------------
@@ -390,6 +245,24 @@ fn parse_stdin() -> Option<StatuslineInput> {
         return None;
     }
     serde_json::from_str(&raw).ok()
+}
+
+struct Session<'p> {
+    env: &'p heed::Env,
+    provider: &'static ProviderDef,
+    session_id: Option<&'p str>,
+    token: Option<&'p str>,
+}
+
+impl<'p> Session<'p> {
+    fn new(env: &'p heed::Env, provider: &'static ProviderDef, session_id: Option<&'p str>, token: Option<&'p str>) -> Result<Self, AppError> {
+        Ok(Self {
+            env,
+            provider,
+            session_id,
+            token,
+        })
+    }
 }
 
 // ---- Top-level entry point ------------------------------------------------
@@ -411,28 +284,13 @@ pub fn generate_statusline(slug: &str) -> Result<String, AppError> {
         return Err(AppError::Other(format!("Provider \"{}\" does not support status line", provider.name)));
     }
 
-    let token = profile.env.get("ANTHROPIC_AUTH_TOKEN");
+    let token = profile.env.get("ANTHROPIC_AUTH_TOKEN").map(|s| s.as_str());
 
-    let balance = match (token, session_id) {
-        // With session_id: check cache first, then fetch, then store
-        (Some(t), Some(sid)) => {
-            if let Some(cached) = cached_balance(sid) {
-                Some(cached)
-            } else if let Ok(b) = fetch_balance(t) {
-                store_balance(sid, &b);
-                Some(b)
-            } else {
-                // Fetch failed — try stale cache as fallback
-                None
-            }
-        }
-        // No session_id: uncached fetch
-        (Some(t), None) => fetch_balance(t).ok(),
-        // No token: can't fetch
-        _ => None,
-    };
+    let env = open_cache_env()?;
+    let session = Session::new(&env, provider, session_id, token)?;
 
-    let peak = is_peak_hours();
-
-    Ok(format_statusline(provider.name, balance.as_deref(), peak))
+    match provider.id {
+        "deepseek" => deepseek::generate_status_line(session),
+        _ => Err(AppError::Other(format!("Provider \"{}\" does not support status line", provider.name))),
+    }
 }

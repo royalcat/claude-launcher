@@ -22,7 +22,9 @@ pub enum FieldType {
         value_type: ExtraBodyValueType,
     },
     /// User picks from predefined options; "Custom..." is appended at render time.
-    Choice { options: &'static [&'static str] },
+    Choice {
+        options: &'static [&'static str],
+    },
 }
 
 /// A single field in a provider's profile form.
@@ -214,12 +216,7 @@ static OPENROUTER_FIELDS: &[ProviderField] = &[
         extra_body_string_list("provider.only"),
         optional
     ),
-    field!(
-        ENV_EXTRA_BODY,
-        "Allow Fallbacks",
-        extra_body_bool("provider.allow_fallbacks"),
-        optional
-    ),
+    field!(ENV_EXTRA_BODY, "Allow Fallbacks", extra_body_bool("provider.allow_fallbacks"), optional),
     field!(ENV_EFFORT_LEVEL, "Effort Level", choice(EFFORT_LEVEL_OPTIONS), optional),
 ];
 

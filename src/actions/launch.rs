@@ -14,6 +14,17 @@ pub fn check_claude_installed() -> bool {
     Command::new(probe).arg("claude").output().map(|o| o.status.success()).unwrap_or(false)
 }
 
+/// Env vars that are launcher-internal (e.g. used by the statusline fetch)
+/// and must never be exported to the launched `claude` process or printed.
+const INTERNAL_ENV_KEYS: &[&str] = &[crate::providers::ENV_MANAGEMENT_KEY];
+
+fn external_env(env: &HashMap<String, String>) -> HashMap<String, String> {
+    env.iter()
+        .filter(|(k, _)| !INTERNAL_ENV_KEYS.contains(&k.as_str()))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect()
+}
+
 pub fn build_command(env: &HashMap<String, String>, claude_args: &[String]) -> String {
     fn shell_quote(value: &str) -> String {
         format!("'{}'", value.replace('\'', "'\\''"))
@@ -110,7 +121,7 @@ pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) ->
     let augmented_args = build_statusline_args(slug, &profile, claude_args);
 
     if print_only {
-        println!("{}", build_command(&profile.env, &augmented_args));
+        println!("{}", build_command(&external_env(&profile.env), &augmented_args));
         return Ok(0);
     }
 
@@ -120,5 +131,5 @@ pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) ->
         ));
     }
 
-    launch_claude(&profile.env, &augmented_args).map_err(|e| AppError::Other(e))
+    launch_claude(&external_env(&profile.env), &augmented_args).map_err(|e| AppError::Other(e))
 }

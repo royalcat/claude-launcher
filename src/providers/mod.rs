@@ -191,6 +191,9 @@ const ENV_SONNET_MODEL: &str = "ANTHROPIC_DEFAULT_SONNET_MODEL";
 const ENV_OPUS_MODEL: &str = "ANTHROPIC_DEFAULT_OPUS_MODEL";
 pub const ENV_EXTRA_BODY: &str = "CLAUDE_CODE_EXTRA_BODY";
 pub const ENV_EFFORT_LEVEL: &str = "CLAUDE_CODE_EFFORT_LEVEL";
+/// Launcher-internal: used only by the statusline to fetch the account balance.
+/// Never exported to the launched `claude` process (see actions/launch.rs).
+pub const ENV_MANAGEMENT_KEY: &str = "OPENROUTER_MANAGEMENT_KEY";
 /// Options for the CLAUDE_CODE_EFFORT_LEVEL environment variable.
 /// "Custom..." is added at render time and is not in this list.
 pub const EFFORT_LEVEL_OPTIONS: &[&str] = &["auto", "low", "medium", "high", "xhigh", "max"];
@@ -207,6 +210,7 @@ static ANTHROPIC_COMPATIBLE_FIELDS: &[ProviderField] = &[
 static OPENROUTER_FIELDS: &[ProviderField] = &[
     field!(ENV_BASE_URL, "API Base URL", url, required, "https://openrouter.ai/api"),
     field!(ENV_AUTH_TOKEN, "API Key", secret, required),
+    field!(ENV_MANAGEMENT_KEY, "Management Key", secret, optional),
     field!(ENV_HAIKU_MODEL, "Haiku Model Override", string, optional),
     field!(ENV_SONNET_MODEL, "Sonnet Model Override", string, optional),
     field!(ENV_OPUS_MODEL, "Opus Model Override", string, optional),
@@ -380,7 +384,7 @@ pub static PROVIDERS: &[ProviderDef] = &[
         id: "openrouter",
         name: "OpenRouter",
         fields: OPENROUTER_FIELDS,
-        supports_statusline: false,
+        supports_statusline: true,
     },
     ProviderDef {
         id: "deepseek",

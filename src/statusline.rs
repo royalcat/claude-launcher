@@ -5,9 +5,10 @@ use serde::Deserialize;
 
 use crate::config::get_profile;
 use crate::error::AppError;
-use crate::providers::{ProviderDef, get_provider};
+use crate::providers::{ENV_MANAGEMENT_KEY, ProviderDef, get_provider};
 
 mod deepseek;
+mod openrouter;
 
 // ---- Stdin JSON from Claude Code -------------------------------------------
 
@@ -252,15 +253,23 @@ struct Session<'p> {
     provider: &'static ProviderDef,
     session_id: Option<&'p str>,
     token: Option<&'p str>,
+    management_key: Option<&'p str>,
 }
 
 impl<'p> Session<'p> {
-    fn new(env: &'p heed::Env, provider: &'static ProviderDef, session_id: Option<&'p str>, token: Option<&'p str>) -> Result<Self, AppError> {
+    fn new(
+        env: &'p heed::Env,
+        provider: &'static ProviderDef,
+        session_id: Option<&'p str>,
+        token: Option<&'p str>,
+        management_key: Option<&'p str>,
+    ) -> Result<Self, AppError> {
         Ok(Self {
             env,
             provider,
             session_id,
             token,
+            management_key,
         })
     }
 }
@@ -285,12 +294,14 @@ pub fn generate_statusline(slug: &str) -> Result<String, AppError> {
     }
 
     let token = profile.env.get("ANTHROPIC_AUTH_TOKEN").map(|s| s.as_str());
+    let management_key = profile.env.get(ENV_MANAGEMENT_KEY).map(|s| s.as_str());
 
     let env = open_cache_env()?;
-    let session = Session::new(&env, provider, session_id, token)?;
+    let session = Session::new(&env, provider, session_id, token, management_key)?;
 
     match provider.id {
         "deepseek" => deepseek::generate_status_line(session),
+        "openrouter" => openrouter::generate_status_line(session),
         _ => Err(AppError::Other(format!("Provider \"{}\" does not support status line", provider.name))),
     }
 }

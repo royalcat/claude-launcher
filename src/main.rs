@@ -70,12 +70,10 @@ fn main() {
             }
         }
 
-        Some(Command::Statusline { profile }) => {
-            match actions::statusline::print_statusline(&profile) {
-                Ok(_) => {}
-                Err(e) => report_fatal(&e),
-            }
-        }
+        Some(Command::Statusline { profile }) => match actions::statusline::print_statusline(&profile) {
+            Ok(_) => {}
+            Err(e) => report_fatal(&e),
+        },
 
         Some(Command::Launch { slug: Some(slug), print }) => {
             let print_only = print || cli.print;

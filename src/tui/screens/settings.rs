@@ -10,9 +10,8 @@ use ratatui_textarea::TextArea;
 
 use super::widgets::{SelectList, render_footer, render_status};
 use crate::settings::{
-    add_workspace, get_active_workspace, list_workspaces, remove_workspace,
-    rename_workspace, set_active_workspace, slugify_label, update_workspace_path,
-    workspace_config_path,
+    add_workspace, get_active_workspace, list_workspaces, remove_workspace, rename_workspace, set_active_workspace, slugify_label,
+    update_workspace_path, workspace_config_path,
 };
 use crate::tui::theme::*;
 

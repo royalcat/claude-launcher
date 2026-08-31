@@ -33,28 +33,17 @@ fn resolve_llama_env(slug: &str, profile: &Profile) -> Result<HashMap<String, St
         return Ok(profile.env.clone());
     }
 
-    let base_url = profile
-        .env
-        .get(crate::providers::ENV_BASE_URL)
-        .map(|s| s.as_str())
-        .unwrap_or_default();
+    let base_url = profile.env.get(crate::providers::ENV_BASE_URL).map(|s| s.as_str()).unwrap_or_default();
     if base_url.trim().is_empty() {
         return Err(AppError::Other(format!(
             "Profile \"{slug}\" has no ANTHROPIC_BASE_URL — cannot auto-detect the llama.cpp model."
         )));
     }
 
-    let auth_token = profile
-        .env
-        .get(crate::providers::ENV_AUTH_TOKEN)
-        .map(|s| s.as_str())
-        .unwrap_or("");
+    let auth_token = profile.env.get(crate::providers::ENV_AUTH_TOKEN).map(|s| s.as_str()).unwrap_or("");
 
-    let model = crate::providers::llama::detect_model(base_url, auth_token).map_err(|e| {
-        AppError::Other(format!(
-            "Failed to auto-detect model for profile \"{slug}\":\n  {e}"
-        ))
-    })?;
+    let model = crate::providers::llama::detect_model(base_url, auth_token)
+        .map_err(|e| AppError::Other(format!("Failed to auto-detect model for profile \"{slug}\":\n  {e}")))?;
 
     let mut env = profile.env.clone();
     env.insert(crate::providers::ENV_HAIKU_MODEL.to_string(), model.clone());
@@ -108,9 +97,7 @@ fn build_statusline_args(slug: &str, profile: &Profile, claude_args: &[String]) 
     if !profile.statusline_enabled {
         return claude_args.to_vec();
     }
-    let provider_supports = get_provider(&profile.provider)
-        .map(|p| p.supports_statusline)
-        .unwrap_or(false);
+    let provider_supports = get_provider(&profile.provider).map(|p| p.supports_statusline).unwrap_or(false);
     if !provider_supports {
         return claude_args.to_vec();
     }

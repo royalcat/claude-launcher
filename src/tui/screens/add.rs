@@ -68,11 +68,7 @@ impl AddState {
 
     fn total_fields(&self) -> usize {
         let base = 1 + self.fields.len();
-        if self.statusline_supported {
-            base + 1
-        } else {
-            base
-        }
+        if self.statusline_supported { base + 1 } else { base }
     }
 
     fn init_form(&mut self, provider: &ProviderDef) {
@@ -129,10 +125,7 @@ impl AddState {
         }
 
         let slugs: Vec<String> = filtered.iter().map(|(s, _, _)| s.clone()).collect();
-        let items: Vec<(String, String)> = filtered
-            .into_iter()
-            .map(|(_, name, desc)| (name, desc))
-            .collect();
+        let items: Vec<(String, String)> = filtered.into_iter().map(|(_, name, desc)| (name, desc)).collect();
 
         self.copy_source_slugs = Some(slugs);
         self.copy_source_list = Some(SelectList::new(items));
@@ -342,7 +335,10 @@ fn render_form(f: &mut Frame, state: &mut AddState, area: Rect) {
         let is_choice = matches!(&field_def.field_type, FieldType::Choice { .. });
         let is_bool = matches!(
             &field_def.field_type,
-            FieldType::ExtraBody { value_type: ExtraBodyValueType::Bool, .. }
+            FieldType::ExtraBody {
+                value_type: ExtraBodyValueType::Bool,
+                ..
+            }
         );
 
         if is_choice {
@@ -446,9 +442,22 @@ fn render_form(f: &mut Frame, state: &mut AddState, area: Rect) {
         );
     }
 
-    let footer_chunk = if state.statusline_supported { 2 + state.fields.len() + 2 } else { 2 + state.fields.len() + 1 };
+    let footer_chunk = if state.statusline_supported {
+        2 + state.fields.len() + 2
+    } else {
+        2 + state.fields.len() + 1
+    };
     render_status(f, chunks[footer_chunk], &state.status, state.is_error);
-    render_footer(f, chunks[footer_chunk + 1], &[("Tab", "next field"), ("Enter", "save"), ("Esc", "cancel"), ("Ctrl+R", "copy from existing")]);
+    render_footer(
+        f,
+        chunks[footer_chunk + 1],
+        &[
+            ("Tab", "next field"),
+            ("Enter", "save"),
+            ("Esc", "cancel"),
+            ("Ctrl+R", "copy from existing"),
+        ],
+    );
 
     // Render choice picker overlay if open
     if let Some(picker) = &state.choice_picker {
@@ -655,10 +664,7 @@ fn handle_form_key(state: &mut AddState, key: KeyEvent) -> Nav {
                     if let Some(field_def) = provider.fields.get(field_idx) {
                         // If active field is a Choice, open the picker
                         if let FieldType::Choice { options } = &field_def.field_type {
-                            let mut items: Vec<(String, String)> = options
-                                .iter()
-                                .map(|o| (o.to_string(), String::new()))
-                                .collect();
+                            let mut items: Vec<(String, String)> = options.iter().map(|o| (o.to_string(), String::new())).collect();
                             items.push(("Custom...".to_string(), "type your own value".to_string()));
                             let current_val = state.fields[field_idx].lines().join("").trim().to_string();
                             let selected = if !current_val.is_empty() {
@@ -676,7 +682,13 @@ fn handle_form_key(state: &mut AddState, key: KeyEvent) -> Nav {
                             return Nav::None;
                         }
                         // Toggle bool ExtraBody checkbox fields
-                        if matches!(&field_def.field_type, FieldType::ExtraBody { value_type: ExtraBodyValueType::Bool, .. }) {
+                        if matches!(
+                            &field_def.field_type,
+                            FieldType::ExtraBody {
+                                value_type: ExtraBodyValueType::Bool,
+                                ..
+                            }
+                        ) {
                             let ta = &mut state.fields[field_idx];
                             let current = ta.lines().join("").trim().to_lowercase();
                             let is_checked = matches!(current.as_str(), "true" | "yes" | "1");
@@ -695,10 +707,20 @@ fn handle_form_key(state: &mut AddState, key: KeyEvent) -> Nav {
     if state.field_cursor == 0 {
         state.name_ta.input(key);
     } else if let Some(ta) = state.fields.get_mut(state.field_cursor - 1) {
-        let is_bool = state.provider_id.as_deref()
+        let is_bool = state
+            .provider_id
+            .as_deref()
             .and_then(|id| get_provider(id))
             .and_then(|p| p.fields.get(state.field_cursor - 1))
-            .map_or(false, |f| matches!(&f.field_type, FieldType::ExtraBody { value_type: ExtraBodyValueType::Bool, .. }));
+            .map_or(false, |f| {
+                matches!(
+                    &f.field_type,
+                    FieldType::ExtraBody {
+                        value_type: ExtraBodyValueType::Bool,
+                        ..
+                    }
+                )
+            });
         if !is_bool {
             ta.input(key);
         }

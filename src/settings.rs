@@ -14,14 +14,12 @@ fn xdg_dirs() -> BaseDirectories {
 }
 
 pub fn settings_path() -> PathBuf {
-    xdg_dirs()
-        .get_config_file("settings.json")
-        .unwrap_or_else(|| {
-            dirs::config_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("claude-launcher")
-                .join("settings.json")
-        })
+    xdg_dirs().get_config_file("settings.json").unwrap_or_else(|| {
+        dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("claude-launcher")
+            .join("settings.json")
+    })
 }
 
 pub fn default_config_path() -> PathBuf {
@@ -29,15 +27,13 @@ pub fn default_config_path() -> PathBuf {
 }
 
 pub fn workspace_config_path(name: &str) -> PathBuf {
-    xdg_dirs()
-        .get_config_file(format!("workspaces/{name}.json"))
-        .unwrap_or_else(|| {
-            dirs::config_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("claude-launcher")
-                .join("workspaces")
-                .join(format!("{name}.json"))
-        })
+    xdg_dirs().get_config_file(format!("workspaces/{name}.json")).unwrap_or_else(|| {
+        dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("claude-launcher")
+            .join("workspaces")
+            .join(format!("{name}.json"))
+    })
 }
 
 // ---- Settings file shape -------------------------------------------------

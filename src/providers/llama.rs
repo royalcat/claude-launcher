@@ -18,24 +18,16 @@ pub fn detect_model(base_url: &str, auth_token: &str) -> Result<String, String> 
     let url = models_url(base_url);
 
     // End-to-end timeout covering DNS through reading the response body.
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .timeout_global(Some(Duration::from_secs(5)))
-        .build()
-        .into();
+    let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(Duration::from_secs(5))).build().into();
 
     let mut req = agent.get(&url).header("Accept", "application/json");
     if !auth_token.trim().is_empty() {
         req = req.header("Authorization", &format!("Bearer {}", auth_token.trim()));
     }
 
-    let mut resp = req
-        .call()
-        .map_err(|e| format!("Could not reach {url}: {e}"))?;
+    let mut resp = req.call().map_err(|e| format!("Could not reach {url}: {e}"))?;
 
-    let body: serde_json::Value = resp
-        .body_mut()
-        .read_json()
-        .map_err(|e| format!("Invalid response from {url}: {e}"))?;
+    let body: serde_json::Value = resp.body_mut().read_json().map_err(|e| format!("Invalid response from {url}: {e}"))?;
 
     let id = body
         .get("data")

@@ -183,7 +183,10 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
         let is_choice = matches!(&field_def.field_type, FieldType::Choice { .. });
         let is_bool = matches!(
             &field_def.field_type,
-            FieldType::ExtraBody { value_type: ExtraBodyValueType::Bool, .. }
+            FieldType::ExtraBody {
+                value_type: ExtraBodyValueType::Bool,
+                ..
+            }
         );
         let current_val = profile.env.get(field_def.key).cloned().unwrap_or_default();
         let hint = if is_bool {
@@ -301,7 +304,11 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
         );
     }
 
-    let footer_chunk = if state.statusline_supported { 1 + field_count + 2 } else { 1 + field_count + 1 };
+    let footer_chunk = if state.statusline_supported {
+        1 + field_count + 2
+    } else {
+        1 + field_count + 1
+    };
     render_status(f, chunks[footer_chunk], &state.status, state.is_error);
     render_footer(
         f,
@@ -471,10 +478,7 @@ fn handle_form_key(state: &mut EditState, key: KeyEvent) -> Nav {
             if let Some(field_def) = provider.fields.get(state.field_cursor) {
                 // If active field is a Choice, open the picker
                 if let FieldType::Choice { options } = &field_def.field_type {
-                    let mut items: Vec<(String, String)> = options
-                        .iter()
-                        .map(|o| (o.to_string(), String::new()))
-                        .collect();
+                    let mut items: Vec<(String, String)> = options.iter().map(|o| (o.to_string(), String::new())).collect();
                     items.push(("Custom...".to_string(), "type your own value".to_string()));
                     let current_val = state.fields[state.field_cursor].lines().join("").trim().to_string();
                     let selected = if !current_val.is_empty() {
@@ -492,7 +496,13 @@ fn handle_form_key(state: &mut EditState, key: KeyEvent) -> Nav {
                     return Nav::None;
                 }
                 // Toggle bool ExtraBody checkbox fields
-                if matches!(&field_def.field_type, FieldType::ExtraBody { value_type: ExtraBodyValueType::Bool, .. }) {
+                if matches!(
+                    &field_def.field_type,
+                    FieldType::ExtraBody {
+                        value_type: ExtraBodyValueType::Bool,
+                        ..
+                    }
+                ) {
                     let ta = &mut state.fields[state.field_cursor];
                     let current = ta.lines().join("").trim().to_lowercase();
                     let is_checked = matches!(current.as_str(), "true" | "yes" | "1");
@@ -509,8 +519,15 @@ fn handle_form_key(state: &mut EditState, key: KeyEvent) -> Nav {
         }
         _ => {
             // Skip text input for bool ExtraBody fields
-            let is_bool = provider.fields.get(state.field_cursor)
-                .map_or(false, |f| matches!(&f.field_type, FieldType::ExtraBody { value_type: ExtraBodyValueType::Bool, .. }));
+            let is_bool = provider.fields.get(state.field_cursor).map_or(false, |f| {
+                matches!(
+                    &f.field_type,
+                    FieldType::ExtraBody {
+                        value_type: ExtraBodyValueType::Bool,
+                        ..
+                    }
+                )
+            });
             if !is_bool {
                 if let Some(ta) = state.fields.get_mut(state.field_cursor) {
                     ta.input(key);

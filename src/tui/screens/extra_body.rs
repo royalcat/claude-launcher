@@ -58,6 +58,7 @@ pub fn serialize_value(value_type: &ExtraBodyValueType, input: &str) -> Option<V
             "false" | "no" | "0" => Some(Value::Bool(false)),
             _ => None,
         },
+        ExtraBodyValueType::Number => trimmed.parse::<i64>().ok().map(|n| Value::Number(n.into())),
     }
 }
 
@@ -71,6 +72,7 @@ pub fn deserialize_value(value_type: &ExtraBodyValueType, value: &Value) -> Opti
             Some(items.join(", "))
         }
         ExtraBodyValueType::Bool => value.as_bool().map(|b| if b { "true" } else { "false" }.to_string()),
+        ExtraBodyValueType::Number => value.as_i64().map(|n| n.to_string()),
     }
 }
 

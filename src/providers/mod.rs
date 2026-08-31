@@ -10,6 +10,8 @@ pub enum ExtraBodyValueType {
     StringList,
     /// "true"/"false" text → JSON bool
     Bool,
+    /// "128" integer text → JSON number
+    Number,
 }
 
 /// The type of a provider field, determining how it's rendered in forms.
@@ -144,6 +146,18 @@ macro_rules! field {
             default: None,
         }
     };
+    ($key:expr, $label:expr, extra_body_number($path:expr), optional) => {
+        ProviderField {
+            key: $key,
+            label: $label,
+            field_type: FieldType::ExtraBody {
+                json_path: $path,
+                value_type: ExtraBodyValueType::Number,
+            },
+            required: false,
+            default: None,
+        }
+    };
     ($key:expr, $label:expr, choice($options:expr), optional) => {
         ProviderField {
             key: $key,
@@ -228,6 +242,12 @@ static OPENROUTER_FIELDS: &[ProviderField] = &[
         ENV_EXTRA_BODY,
         "Quantization Levels (comma-separated)",
         extra_body_string_list("provider.quantizations"),
+        optional
+    ),
+    field!(
+        ENV_EXTRA_BODY,
+        "Min Throughput (tokens/s)",
+        extra_body_number("provider.preferred_min_throughput"),
         optional
     ),
     field!(ENV_EXTRA_BODY, "Allow Fallbacks", extra_body_bool("provider.allow_fallbacks"), optional),

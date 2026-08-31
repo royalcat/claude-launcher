@@ -1,3 +1,5 @@
+pub mod llama;
+
 /// How a value stored inside `CLAUDE_CODE_EXTRA_BODY` is serialized/deserialized.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(dead_code)]
@@ -184,16 +186,18 @@ macro_rules! field {
 // using a const fn that concatenates two slices. Since Rust doesn't yet have
 // const-friendly Vec, we define each provider's full field list explicitly.
 
-const ENV_BASE_URL: &str = "ANTHROPIC_BASE_URL";
-const ENV_AUTH_TOKEN: &str = "ANTHROPIC_AUTH_TOKEN";
-const ENV_HAIKU_MODEL: &str = "ANTHROPIC_DEFAULT_HAIKU_MODEL";
-const ENV_SONNET_MODEL: &str = "ANTHROPIC_DEFAULT_SONNET_MODEL";
-const ENV_OPUS_MODEL: &str = "ANTHROPIC_DEFAULT_OPUS_MODEL";
+pub const ENV_BASE_URL: &str = "ANTHROPIC_BASE_URL";
+pub const ENV_AUTH_TOKEN: &str = "ANTHROPIC_AUTH_TOKEN";
+pub const ENV_HAIKU_MODEL: &str = "ANTHROPIC_DEFAULT_HAIKU_MODEL";
+pub const ENV_SONNET_MODEL: &str = "ANTHROPIC_DEFAULT_SONNET_MODEL";
+pub const ENV_OPUS_MODEL: &str = "ANTHROPIC_DEFAULT_OPUS_MODEL";
 pub const ENV_EXTRA_BODY: &str = "CLAUDE_CODE_EXTRA_BODY";
 pub const ENV_EFFORT_LEVEL: &str = "CLAUDE_CODE_EFFORT_LEVEL";
 /// Launcher-internal: used only by the statusline to fetch the account balance.
 /// Never exported to the launched `claude` process (see actions/launch.rs).
 pub const ENV_MANAGEMENT_KEY: &str = "OPENROUTER_MANAGEMENT_KEY";
+/// Provider id for the auto-detecting llama.cpp single-model provider.
+pub const PROVIDER_LLAMA_SINGLE_MODEL: &str = "llama-single-model";
 /// Options for the CLAUDE_CODE_EFFORT_LEVEL environment variable.
 /// "Custom..." is added at render time and is not in this list.
 pub const EFFORT_LEVEL_OPTIONS: &[&str] = &["auto", "low", "medium", "high", "xhigh", "max"];
@@ -218,6 +222,12 @@ static OPENROUTER_FIELDS: &[ProviderField] = &[
         ENV_EXTRA_BODY,
         "Provider Only (comma-separated)",
         extra_body_string_list("provider.only"),
+        optional
+    ),
+    field!(
+        ENV_EXTRA_BODY,
+        "Quantization Levels (comma-separated)",
+        extra_body_string_list("provider.quantizations"),
         optional
     ),
     field!(ENV_EXTRA_BODY, "Allow Fallbacks", extra_body_bool("provider.allow_fallbacks"), optional),
@@ -347,6 +357,12 @@ static LITELLM_FIELDS: &[ProviderField] = &[
     field!(ENV_EFFORT_LEVEL, "Effort Level", choice(EFFORT_LEVEL_OPTIONS), optional),
 ];
 
+static LLAMA_SINGLE_MODEL_FIELDS: &[ProviderField] = &[
+    field!(ENV_BASE_URL, "llama.cpp URL", url, required, "http://localhost:8080"),
+    field!(ENV_AUTH_TOKEN, "Auth Token", secret, optional),
+    field!(ENV_EFFORT_LEVEL, "Effort Level", choice(EFFORT_LEVEL_OPTIONS), optional),
+];
+
 static CLOUDFLARE_FIELDS: &[ProviderField] = &[
     field!(ENV_BASE_URL, "Gateway URL", url, required),
     field!(ENV_AUTH_TOKEN, "API Key", secret, required),
@@ -468,6 +484,12 @@ pub static PROVIDERS: &[ProviderDef] = &[
         id: "vercel",
         name: "Vercel AI Gateway",
         fields: VERCEL_FIELDS,
+        supports_statusline: false,
+    },
+    ProviderDef {
+        id: PROVIDER_LLAMA_SINGLE_MODEL,
+        name: "llama.cpp (single model, auto-detect)",
+        fields: LLAMA_SINGLE_MODEL_FIELDS,
         supports_statusline: false,
     },
 ];

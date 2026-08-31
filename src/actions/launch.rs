@@ -25,6 +25,44 @@ fn external_env(env: &HashMap<String, String>) -> HashMap<String, String> {
         .collect()
 }
 
+/// For `llama-single-model` profiles, auto-detect the served model name by
+/// querying `/v1/models` and inject it into the three Claude model env vars
+/// at launch time. All other providers return the stored env unchanged.
+fn resolve_llama_env(slug: &str, profile: &Profile) -> Result<HashMap<String, String>, AppError> {
+    if profile.provider != crate::providers::PROVIDER_LLAMA_SINGLE_MODEL {
+        return Ok(profile.env.clone());
+    }
+
+    let base_url = profile
+        .env
+        .get(crate::providers::ENV_BASE_URL)
+        .map(|s| s.as_str())
+        .unwrap_or_default();
+    if base_url.trim().is_empty() {
+        return Err(AppError::Other(format!(
+            "Profile \"{slug}\" has no ANTHROPIC_BASE_URL — cannot auto-detect the llama.cpp model."
+        )));
+    }
+
+    let auth_token = profile
+        .env
+        .get(crate::providers::ENV_AUTH_TOKEN)
+        .map(|s| s.as_str())
+        .unwrap_or("");
+
+    let model = crate::providers::llama::detect_model(base_url, auth_token).map_err(|e| {
+        AppError::Other(format!(
+            "Failed to auto-detect model for profile \"{slug}\":\n  {e}"
+        ))
+    })?;
+
+    let mut env = profile.env.clone();
+    env.insert(crate::providers::ENV_HAIKU_MODEL.to_string(), model.clone());
+    env.insert(crate::providers::ENV_SONNET_MODEL.to_string(), model.clone());
+    env.insert(crate::providers::ENV_OPUS_MODEL.to_string(), model);
+    Ok(env)
+}
+
 pub fn build_command(env: &HashMap<String, String>, claude_args: &[String]) -> String {
     fn shell_quote(value: &str) -> String {
         format!("'{}'", value.replace('\'', "'\\''"))
@@ -117,11 +155,14 @@ pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) ->
         AppError::Other(format!("Profile \"{slug}\" not found.{hint}"))
     })?;
 
+    // Auto-detect and inject the model for llama-single-model profiles.
+    let resolved_env = resolve_llama_env(slug, &profile)?;
+
     // Augment args with --settings if statusline is enabled
     let augmented_args = build_statusline_args(slug, &profile, claude_args);
 
     if print_only {
-        println!("{}", build_command(&external_env(&profile.env), &augmented_args));
+        println!("{}", build_command(&external_env(&resolved_env), &augmented_args));
         return Ok(0);
     }
 
@@ -131,5 +172,5 @@ pub fn launch_with_slug(slug: &str, claude_args: &[String], print_only: bool) ->
         ));
     }
 
-    launch_claude(&external_env(&profile.env), &augmented_args).map_err(|e| AppError::Other(e))
+    launch_claude(&external_env(&resolved_env), &augmented_args).map_err(|e| AppError::Other(e))
 }

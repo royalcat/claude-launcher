@@ -289,9 +289,7 @@ fn render_form(f: &mut Frame, state: &mut AddState, area: Rect) {
     // Derive the active tab from the focused field; name and statusline keep the current tab.
     let has_tabs = provider.groups.is_some();
     let tab_bar_rows: usize = if has_tabs { 1 } else { 0 };
-    if state.field_cursor == 0
-        || (state.statusline_supported && state.field_cursor == 1 + state.fields.len())
-    {
+    if state.field_cursor == 0 || (state.statusline_supported && state.field_cursor == 1 + state.fields.len()) {
         // keep current tab
     } else if let Some(t) = provider.tab_for_field(state.field_cursor - 1) {
         state.tab = t;

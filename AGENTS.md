@@ -41,7 +41,7 @@ src/
 ├── config.rs          Profile CRUD; load/save JSON at 0600; slugify_name, mask_secret
 ├── settings.rs        Workspace CRUD; settings.json load/save; runtime overrides via OnceLock
 ├── providers/
-│   └── mod.rs         16 static ProviderDef entries; FieldType enum; field! macro; get_provider()
+│   └── mod.rs         18 static ProviderDef entries; FieldType enum; ProviderField builder; get_provider()
 ├── actions/
 │   ├── mod.rs         Re-exports
 │   ├── list.rs        Non-interactive profile listing (plain stdout)
@@ -106,8 +106,15 @@ Providers are **statically compiled in** `src/providers/mod.rs`. There is no run
 - `Url` — rendered as a plain text area, no masking
 - `Secret` — masked with `•` in tui-textarea
 - `String` — plain text, optional model/path overrides
+- `ExtraBody { json_path, value_type }` — stored inside `CLAUDE_CODE_EXTRA_BODY` at a dot-separated JSON path
+- `Choice { options }` — user picks from predefined options; "Custom..." is appended at render time
 
-**To add a new provider**: add a new `ProviderDef` constant and append it to the `PROVIDERS` static slice. No other files need to change.
+Fields are built with a `const` builder (usable inside the static slices) — `FieldType` is a mandatory constructor argument, with `.required()` / `.optional()` / `.default(...)` as chained modifiers. Example:
+```rust
+ProviderField::field(ENV_BASE_URL, "API Base URL", FieldType::Url).required().default("https://...")
+```
+
+**To add a new provider**: add a `new static ..._FIELDS: &[ProviderField]` slice using the builder above, plus a new `ProviderDef` constant, and append it to the `PROVIDERS` static slice. No other files need to change.
 
 ---
 

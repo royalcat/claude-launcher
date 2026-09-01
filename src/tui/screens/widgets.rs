@@ -143,6 +143,25 @@ impl SelectList {
     }
 }
 
+/// Render a single-line horizontal tab bar. `active` indexes into `labels`.
+pub fn render_tabs(f: &mut Frame, area: Rect, labels: &[&str], active: usize) {
+    let mut spans: Vec<Span> = Vec::new();
+    for (i, label) in labels.iter().enumerate() {
+        if i > 0 {
+            spans.push(dim("  │  "));
+        }
+        if i == active {
+            spans.push(Span::styled(
+                format!("▎{label}"),
+                Style::default().fg(ORANGE).add_modifier(Modifier::BOLD),
+            ));
+        } else {
+            spans.push(Span::styled(format!(" {label} "), Style::default().fg(DIM_COLOR)));
+        }
+    }
+    f.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
 /// State for a choice-picker popup overlaid on a form field.
 pub struct ChoicePicker {
     pub field_index: usize,

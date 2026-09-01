@@ -1,5 +1,5 @@
 use super::extra_body::{build_extra_body, deserialize_value, get_nested_path, parse_extra_body, serialize_value, set_nested_path};
-use super::widgets::{ChoicePicker, SelectList, centered_rect, render_footer, render_status};
+use super::widgets::{ChoicePicker, SelectList, centered_rect, render_footer, render_status, render_tabs};
 use crate::config::{Profile, get_all_profiles, get_profile, mask_secret, rename_profile};
 use crate::providers::{ExtraBodyValueType, FieldType, ProviderDef, get_provider};
 use crate::tui::theme::*;
@@ -33,6 +33,8 @@ pub struct EditState {
     statusline_enabled: bool,
     /// Whether the selected provider supports statusline (hides checkbox if false)
     statusline_supported: bool,
+    /// Active tab index when the provider has grouped fields
+    tab: usize,
 }
 
 impl EditState {
@@ -59,6 +61,7 @@ impl EditState {
             choice_picker: None,
             statusline_enabled: false,
             statusline_supported: false,
+            tab: 0,
         }
     }
 
@@ -113,6 +116,7 @@ impl EditState {
             .collect();
         self.current_slug = Some(slug.to_string());
         self.field_cursor = 0;
+        self.tab = 0;
     }
 }
 
@@ -157,9 +161,24 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
         None => return,
     };
 
-    let field_count = state.fields.len();
+    // Derive the active tab from the focused field; statusline keeps the current tab.
+    let has_tabs = provider.groups.is_some();
+    let tab_bar_rows: usize = if has_tabs { 1 } else { 0 };
+    if state.statusline_supported && state.field_cursor == state.fields.len() {
+        // keep current tab
+    } else if let Some(t) = provider.tab_for_field(state.field_cursor) {
+        state.tab = t;
+    }
+    state.tab = state.tab.min(provider.tab_count().saturating_sub(1));
+    let indices = provider.tab_field_indices(state.tab);
+    let field_row_base = 1 + tab_bar_rows; // title(0), [tab bar]
+    let statusline_chunk = field_row_base + indices.len();
+
     let mut constraints = vec![Constraint::Length(2)];
-    for _ in &state.fields {
+    if has_tabs {
+        constraints.push(Constraint::Length(1));
+    }
+    for _ in &indices {
         constraints.push(Constraint::Length(3));
     }
     if state.statusline_supported {
@@ -177,8 +196,18 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
     ]));
     f.render_widget(title, chunks[0]);
 
-    for (i, (field_def, textarea)) in provider.fields.iter().zip(state.fields.iter_mut()).enumerate() {
-        let is_active = i == state.field_cursor;
+    // Render the tab bar when the provider groups its fields
+    if has_tabs {
+        if let Some(groups) = provider.groups {
+            let labels: Vec<&str> = groups.iter().map(|g| g.label).collect();
+            render_tabs(f, chunks[1], &labels, state.tab);
+        }
+    }
+
+    for (row, &abs_idx) in indices.iter().enumerate() {
+        let field_def = &provider.fields[abs_idx];
+        let textarea = &mut state.fields[abs_idx];
+        let is_active = state.field_cursor == abs_idx;
         let req_marker = if field_def.required { " *" } else { " (opt)" };
         let is_choice = matches!(&field_def.field_type, FieldType::Choice { .. });
         let is_bool = matches!(
@@ -215,8 +244,8 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
                 .title(Span::styled(label, border_style))
                 .borders(Borders::ALL)
                 .border_style(border_style);
-            let inner = block.inner(chunks[1 + i]);
-            f.render_widget(block, chunks[1 + i]);
+            let inner = block.inner(chunks[field_row_base + row]);
+            f.render_widget(block, chunks[field_row_base + row]);
             let text_style = if is_active {
                 if raw.is_empty() {
                     Style::default().fg(DIM_COLOR)
@@ -244,8 +273,8 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
                 .title(Span::styled(label, border_style))
                 .borders(Borders::ALL)
                 .border_style(border_style);
-            let inner = block.inner(chunks[1 + i]);
-            f.render_widget(block, chunks[1 + i]);
+            let inner = block.inner(chunks[field_row_base + row]);
+            f.render_widget(block, chunks[field_row_base + row]);
             let text_style = if is_active {
                 Style::default().fg(ORANGE).add_modifier(Modifier::BOLD)
             } else {
@@ -272,7 +301,7 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
                 textarea.set_cursor_style(Style::default());
             }
 
-            f.render_widget(&*textarea, chunks[1 + i]);
+            f.render_widget(&*textarea, chunks[field_row_base + row]);
         }
     }
 
@@ -291,8 +320,8 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
             .title(Span::styled(label, border_style))
             .borders(Borders::ALL)
             .border_style(border_style);
-        let inner = block.inner(chunks[1 + state.fields.len()]);
-        f.render_widget(block, chunks[1 + state.fields.len()]);
+        let inner = block.inner(chunks[statusline_chunk]);
+        f.render_widget(block, chunks[statusline_chunk]);
         let text_style = if is_active {
             Style::default().fg(ORANGE).add_modifier(Modifier::BOLD)
         } else {
@@ -304,15 +333,11 @@ fn render_form(f: &mut Frame, state: &mut EditState, area: Rect) {
         );
     }
 
-    let footer_chunk = if state.statusline_supported {
-        1 + field_count + 2
-    } else {
-        1 + field_count + 1
-    };
-    render_status(f, chunks[footer_chunk], &state.status, state.is_error);
+    let status_chunk = statusline_chunk + if state.statusline_supported { 2 } else { 1 };
+    render_status(f, chunks[status_chunk], &state.status, state.is_error);
     render_footer(
         f,
-        chunks[footer_chunk + 1],
+        chunks[status_chunk + 1],
         &[("Tab", "next field"), ("Enter", "save"), ("Esc", "cancel")],
     );
 

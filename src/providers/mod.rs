@@ -51,6 +51,42 @@ pub struct ProviderDef {
     pub name: &'static str,
     pub fields: &'static [ProviderField],
     pub supports_statusline: bool,
+    /// Optional grouping of `fields` into tabs for the form. `None` renders a flat form.
+    pub groups: Option<&'static [ProviderFieldGroup]>,
+}
+
+impl ProviderDef {
+    /// Number of tabs, or 1 when the provider has no groupings.
+    pub fn tab_count(&self) -> usize {
+        self.groups.map_or(1, |g| g.len())
+    }
+
+    /// Absolute field indices rendered by a given tab (clamped). With no groupings,
+    /// returns every field index, so the form renders flat as before.
+    pub fn tab_field_indices(&self, tab: usize) -> Vec<usize> {
+        match self.groups {
+            Some(groups) => groups
+                .get(tab.min(groups.len().saturating_sub(1)))
+                .map(|g| g.field_indices.to_vec())
+                .unwrap_or_default(),
+            None => (0..self.fields.len()).collect(),
+        }
+    }
+
+    /// The group that owns a field index, if any.
+    pub fn tab_for_field(&self, field_idx: usize) -> Option<usize> {
+        self.groups?
+            .iter()
+            .position(|g| g.field_indices.contains(&field_idx))
+    }
+}
+
+/// A named group of provider fields, rendered as a tab in the form.
+#[derive(Debug, Clone)]
+pub struct ProviderFieldGroup {
+    pub label: &'static str,
+    /// Absolute indices into the parent `ProviderDef::fields`.
+    pub field_indices: &'static [usize],
 }
 
 // ---- Provider definitions ------------------------------------------------
@@ -254,6 +290,18 @@ static OPENROUTER_FIELDS: &[ProviderField] = &[
     field!(ENV_EFFORT_LEVEL, "Effort Level", choice(EFFORT_LEVEL_OPTIONS), optional),
 ];
 
+/// Tab groupings over `OPENROUTER_FIELDS` indices (see that field list above).
+static OPENROUTER_GROUPS: &[ProviderFieldGroup] = &[
+    ProviderFieldGroup {
+        label: "General",
+        field_indices: &[0, 1, 2, 3, 4, 5, 10],
+    },
+    ProviderFieldGroup {
+        label: "Provider Selection",
+        field_indices: &[6, 7, 8, 9],
+    },
+];
+
 static ZAI_FIELDS: &[ProviderField] = &[
     field!(ENV_BASE_URL, "API Base URL", url, required, "https://api.z.ai/api/anthropic"),
     field!(ENV_AUTH_TOKEN, "API Key", secret, required),
@@ -409,108 +457,126 @@ pub static PROVIDERS: &[ProviderDef] = &[
         name: "Any Anthropic or OpenAI Compatible",
         fields: ANTHROPIC_COMPATIBLE_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "zai",
         name: "z.ai (GLM)",
         fields: ZAI_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "openrouter",
         name: "OpenRouter",
         fields: OPENROUTER_FIELDS,
         supports_statusline: true,
+        groups: Some(OPENROUTER_GROUPS),
     },
     ProviderDef {
         id: "deepseek",
         name: "DeepSeek",
         fields: DEEPSEEK_FIELDS,
         supports_statusline: true,
+        groups: None,
     },
     ProviderDef {
         id: "minimax",
         name: "MiniMax",
         fields: MINIMAX_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "glm",
         name: "GLM (ZhipuAI)",
         fields: GLM_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "moonshot",
         name: "Moonshot",
         fields: MOONSHOT_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "qwen",
         name: "Qwen (Alibaba)",
         fields: QWEN_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "fireworks",
         name: "Fireworks AI",
         fields: FIREWORKS_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "volcengine",
         name: "Volcengine",
         fields: VOLCENGINE_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "nvidia-nim",
         name: "NVIDIA NIM",
         fields: NVIDIA_NIM_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "ollama",
         name: "Ollama (local)",
         fields: OLLAMA_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "lmstudio",
         name: "LM Studio",
         fields: LMSTUDIO_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "vllm",
         name: "vLLM",
         fields: VLLM_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "litellm",
         name: "LiteLLM",
         fields: LITELLM_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "cloudflare",
         name: "Cloudflare AI Gateway",
         fields: CLOUDFLARE_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: "vercel",
         name: "Vercel AI Gateway",
         fields: VERCEL_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
     ProviderDef {
         id: PROVIDER_LLAMA_SINGLE_MODEL,
         name: "llama.cpp (single model, auto-detect)",
         fields: LLAMA_SINGLE_MODEL_FIELDS,
         supports_statusline: false,
+        groups: None,
     },
 ];
 

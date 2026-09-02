@@ -1,5 +1,25 @@
 use std::time::Duration;
 
+use super::{EFFORT_LEVEL_OPTIONS, ENV_AUTH_TOKEN, ENV_BASE_URL, ENV_EFFORT_LEVEL, FieldType, ProviderField};
+
+/// Provider id for the auto-detecting llama.cpp single-model provider.
+pub const PROVIDER_LLAMACPP_SINGLE_MODEL: &str = "llama-single-model";
+
+pub static LLAMACPP_FIELDS: &[ProviderField] = &[
+    ProviderField::field(ENV_BASE_URL, "llama.cpp URL", FieldType::Url)
+        .required()
+        .default("http://localhost:8080"),
+    ProviderField::field(ENV_AUTH_TOKEN, "Auth Token", FieldType::Secret).optional(),
+    ProviderField::field(
+        ENV_EFFORT_LEVEL,
+        "Effort Level",
+        FieldType::Choice {
+            options: EFFORT_LEVEL_OPTIONS,
+        },
+    )
+    .optional(),
+];
+
 /// Normalize a provider base URL into the OpenAI-style `/v1/models` endpoint.
 /// Handles the common spellings: `http://host:port`,
 /// `http://host:port/`, `http://host:port/v1`, `http://host:port/v1/`.

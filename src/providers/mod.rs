@@ -1,4 +1,6 @@
-pub mod llama;
+pub mod llamacpp;
+
+pub use llamacpp::PROVIDER_LLAMACPP_SINGLE_MODEL;
 
 /// How a value stored inside `CLAUDE_CODE_EXTRA_BODY` is serialized/deserialized.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,8 +131,6 @@ pub const ENV_EFFORT_LEVEL: &str = "CLAUDE_CODE_EFFORT_LEVEL";
 /// Launcher-internal: used only by the statusline to fetch the account balance.
 /// Never exported to the launched `claude` process (see actions/launch.rs).
 pub const ENV_MANAGEMENT_KEY: &str = "OPENROUTER_MANAGEMENT_KEY";
-/// Provider id for the auto-detecting llama.cpp single-model provider.
-pub const PROVIDER_LLAMA_SINGLE_MODEL: &str = "llama-single-model";
 /// Options for the CLAUDE_CODE_EFFORT_LEVEL environment variable.
 /// "Custom..." is added at render time and is not in this list.
 pub const EFFORT_LEVEL_OPTIONS: &[&str] = &["auto", "low", "medium", "high", "xhigh", "max"];
@@ -457,21 +457,6 @@ static LITELLM_FIELDS: &[ProviderField] = &[
     .optional(),
 ];
 
-static LLAMA_SINGLE_MODEL_FIELDS: &[ProviderField] = &[
-    ProviderField::field(ENV_BASE_URL, "llama.cpp URL", FieldType::Url)
-        .required()
-        .default("http://localhost:8080"),
-    ProviderField::field(ENV_AUTH_TOKEN, "Auth Token", FieldType::Secret).optional(),
-    ProviderField::field(
-        ENV_EFFORT_LEVEL,
-        "Effort Level",
-        FieldType::Choice {
-            options: EFFORT_LEVEL_OPTIONS,
-        },
-    )
-    .optional(),
-];
-
 static CLOUDFLARE_FIELDS: &[ProviderField] = &[
     ProviderField::field(ENV_BASE_URL, "Gateway URL", FieldType::Url).required(),
     ProviderField::field(ENV_AUTH_TOKEN, "API Key", FieldType::Secret).required(),
@@ -627,9 +612,9 @@ pub static PROVIDERS: &[ProviderDef] = &[
         groups: None,
     },
     ProviderDef {
-        id: PROVIDER_LLAMA_SINGLE_MODEL,
+        id: PROVIDER_LLAMACPP_SINGLE_MODEL,
         name: "llama.cpp (single model, auto-detect)",
-        fields: LLAMA_SINGLE_MODEL_FIELDS,
+        fields: llamacpp::LLAMACPP_FIELDS,
         supports_statusline: false,
         groups: None,
     },

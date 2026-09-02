@@ -29,7 +29,7 @@ fn external_env(env: &HashMap<String, String>) -> HashMap<String, String> {
 /// querying `/v1/models` and inject it into the three Claude model env vars
 /// at launch time. All other providers return the stored env unchanged.
 fn resolve_llama_env(slug: &str, profile: &Profile) -> Result<HashMap<String, String>, AppError> {
-    if profile.provider != crate::providers::PROVIDER_LLAMA_SINGLE_MODEL {
+    if profile.provider != crate::providers::PROVIDER_LLAMACPP_SINGLE_MODEL {
         return Ok(profile.env.clone());
     }
 
@@ -42,7 +42,7 @@ fn resolve_llama_env(slug: &str, profile: &Profile) -> Result<HashMap<String, St
 
     let auth_token = profile.env.get(crate::providers::ENV_AUTH_TOKEN).map(|s| s.as_str()).unwrap_or("");
 
-    let model = crate::providers::llama::detect_model(base_url, auth_token)
+    let model = crate::providers::llamacpp::detect_model(base_url, auth_token)
         .map_err(|e| AppError::Other(format!("Failed to auto-detect model for profile \"{slug}\":\n  {e}")))?;
 
     let mut env = profile.env.clone();
